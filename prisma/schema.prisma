@@ -1,0 +1,27 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Transcription {
+  id         String   @id @default(cuid())
+  resourceId String   @unique
+  text       String // SQLite doesn't have Text type, uses String
+  summary    String?
+  topics     String // Store stringified JSON
+  chapters   String? // Store stringified JSON
+  words      String? // Store stringified JSON
+  status     String   @default("PENDING") // Using string instead of enum
+  error      String?
+  language   String?  @default("en")
+  duration   Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

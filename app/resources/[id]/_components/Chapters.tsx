@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
 import { Chapter } from "assemblyai";
 
 // New Chapter component
@@ -12,13 +12,6 @@ export const ChapterSection = ({
   currentTime: number;
   onChapterClick: (time: number) => void;
 }) => {
-  const formatTime = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  };
-
   return (
     <section className="space-y-4">
       <h3 className="text-xl font-semibold border-b pb-2">Chapters</h3>

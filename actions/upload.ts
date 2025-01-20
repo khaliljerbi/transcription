@@ -1,13 +1,13 @@
 "use server";
 
-import ytdl from "ytdl-core";
+import ytdl from "@distube/ytdl-core";
 
 export const getYoutubePublicUrl = async (url: string) => {
   try {
     const info = await ytdl.getInfo(url);
-    const audioStream = ytdl(url, {
+    const audioStream = ytdl.downloadFromInfo(info, {
+      quality: "lowest",
       filter: "audioonly",
-      quality: "highestaudio",
     });
     return { audio: audioStream, id: info.videoDetails.videoId };
   } catch (error) {

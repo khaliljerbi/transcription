@@ -2,16 +2,16 @@
 import { getOrCreateTranscription } from "@/actions/assembley";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatTopic } from "@/lib/utils";
+import { Chapter, Word } from "assemblyai";
 import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { YouTubePlayer } from "react-youtube";
+import { ChapterSection } from "./_components/Chapters";
 import { MediaPlayer } from "./_components/MediaPlayer";
 import { TranscriptText } from "./_components/TranscriptText";
-import { Chapter, Word } from "assemblyai";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChapterSection } from "./_components/Chapters";
 
 interface TranscriptionResult {
   topics: Record<string, number>;
@@ -104,9 +104,10 @@ export default function TranscriptionPage() {
       </div>
 
       <Tabs defaultValue="transcript" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="transcript">Transcript</TabsTrigger>
           <TabsTrigger value="chapters">Chapters</TabsTrigger>
+          <TabsTrigger value="summary">Summary</TabsTrigger>
         </TabsList>
 
         <TabsContent value="transcript" className="mt-6">
@@ -118,6 +119,7 @@ export default function TranscriptionPage() {
               isPlaying={isPlaying}
               isExpanded={isExpanded}
               onExpandToggle={() => setIsExpanded(!isExpanded)}
+              onChapterClick={handleChapterClick}
             />
           </Card>
         </TabsContent>
@@ -129,17 +131,14 @@ export default function TranscriptionPage() {
             onChapterClick={handleChapterClick}
           />
         </TabsContent>
+        <TabsContent value="summary" className="mt-6">
+          <Card className="p-6">
+            <p className="text-muted-foreground">
+              {transcriptionData?.summary || "No summary available"}
+            </p>
+          </Card>
+        </TabsContent>
       </Tabs>
-
-      {/* Summary Section */}
-      {/* <div className="mt-8">
-        <Card className="p-6">
-          <h3 className="text-xl font-semibold border-b pb-2 mb-4">Summary</h3>
-          <p className="text-muted-foreground">
-            {transcriptionData?.summary || "No summary available"}
-          </p>
-        </Card>
-      </div> */}
     </div>
   );
 }

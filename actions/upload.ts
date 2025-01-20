@@ -4,11 +4,15 @@ import ytdl from "@distube/ytdl-core";
 
 export const getYoutubePublicUrl = async (url: string) => {
   try {
-    const info = await ytdl.getInfo(url);
+    const agent = ytdl.createAgent(
+      JSON.parse(process.env.COOKIES_PARAMS as string)
+    );
+    const info = await ytdl.getInfo(url, { agent });
     const audioStream = ytdl.downloadFromInfo(info, {
       quality: "lowest",
       filter: "audioonly",
       highWaterMark: 1 << 25,
+      agent,
     });
     return { audio: audioStream, id: info.videoDetails.videoId };
   } catch (error) {

@@ -1,24 +1,36 @@
 "use client";
 import { getOrCreateTranscription } from "@/actions/assembley";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatTopic } from "@/lib/utils";
 import { Chapter, Word } from "assemblyai";
-import { Loader2 } from "lucide-react";
+import { Loader2, Menu } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { YouTubePlayer } from "react-youtube";
 import { ChapterSection } from "./_components/Chapters";
+import ChatWidget from "./_components/ChatWidget";
 import { MediaPlayer } from "./_components/MediaPlayer";
 import { TranscriptText } from "./_components/TranscriptText";
 
 interface TranscriptionResult {
+  transcriptionId: string;
   topics: Record<string, number>;
   text: string | null | undefined;
   summary: string | null | undefined;
   words: Word[] | null | undefined;
   chapters: Chapter[] | null | undefined;
+}
+
+enum MenuDetails {
+  TRANSCRIPT = "TRANSCRIPT",
+  TOPICS = "TOPICS",
 }
 
 export default function TranscriptionPage() {
@@ -29,6 +41,7 @@ export default function TranscriptionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [menu, setMenu] = useState<MenuDetails>(MenuDetails.TRANSCRIPT);
   const playerRef = useRef<YouTubePlayer | null>(null);
 
   const { id } = useParams();
@@ -71,9 +84,39 @@ export default function TranscriptionPage() {
         .sort(([, a], [, b]) => b - a)
         .map(([topic]) => topic)
     : [];
-  console.log("https://www.youtube.com/watch?v=${id}`", id);
+
+  const renderMenuContent = (content: MenuDetails) => {
+    switch (content) {
+      case MenuDetails.TRANSCRIPT:
+        return (
+          <TranscriptText
+            words={transcriptionData?.words}
+            text={transcriptionData?.text}
+            currentTime={currentTime}
+            isPlaying={isPlaying}
+            isExpanded={isExpanded}
+            onExpandToggle={() => setIsExpanded(!isExpanded)}
+            onChapterClick={handleChapterClick}
+          />
+        );
+      case MenuDetails.TOPICS:
+        return (
+          <div className="flex flex-wrap gap-2">
+            {relevantTopics.map((topic) => (
+              <Badge key={topic} variant="secondary" className="text-sm">
+                {formatTopic(topic)}
+              </Badge>
+            ))}
+            {relevantTopics.length === 0 && (
+              <p className="text-gray-500">No relevant topics found</p>
+            )}
+          </div>
+        );
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-6 relative">
       <div className="grid md:grid-cols-3 gap-8 mb-8">
         {/* Left side - Player */}
         <div className="md:col-span-2">
@@ -87,41 +130,40 @@ export default function TranscriptionPage() {
           )}
         </div>
 
-        {/* Right side - Topics */}
         <div className="bg-white rounded-lg p-6 shadow-sm">
-          <h3 className="text-xl font-semibold border-b pb-2 mb-4">Topics</h3>
-          <div className="flex flex-wrap gap-2">
-            {relevantTopics.map((topic) => (
-              <Badge key={topic} variant="secondary" className="text-sm">
-                {formatTopic(topic)}
-              </Badge>
-            ))}
-            {relevantTopics.length === 0 && (
-              <p className="text-gray-500">No relevant topics found</p>
-            )}
+          <div className="flex justify-between items-center border-b pb-2 mb-4">
+            <h3 className="text-xl font-semibold ">{menu}</h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Menu className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onClick={() => setMenu(MenuDetails.TRANSCRIPT)}
+                >
+                  Transcript
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMenu(MenuDetails.TOPICS)}>
+                  Topics
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
+
+          {renderMenuContent(menu)}
         </div>
       </div>
 
-      <Tabs defaultValue="transcript" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="transcript">Transcript</TabsTrigger>
-          <TabsTrigger value="chapters">Chapters</TabsTrigger>
+      <Tabs defaultValue="summary" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="chapters">Chapters</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="transcript" className="mt-6">
-          <Card className="p-6">
-            <TranscriptText
-              words={transcriptionData?.words}
-              text={transcriptionData?.text}
-              currentTime={currentTime}
-              isPlaying={isPlaying}
-              isExpanded={isExpanded}
-              onExpandToggle={() => setIsExpanded(!isExpanded)}
-              onChapterClick={handleChapterClick}
-            />
-          </Card>
+        <TabsContent value="summary" className="mt-6">
+          <p className="text-muted-foreground">
+            {transcriptionData?.summary || "No summary available"}
+          </p>
         </TabsContent>
 
         <TabsContent value="chapters" className="mt-6">
@@ -131,14 +173,11 @@ export default function TranscriptionPage() {
             onChapterClick={handleChapterClick}
           />
         </TabsContent>
-        <TabsContent value="summary" className="mt-6">
-          <Card className="p-6">
-            <p className="text-muted-foreground">
-              {transcriptionData?.summary || "No summary available"}
-            </p>
-          </Card>
-        </TabsContent>
       </Tabs>
+
+      {transcriptionData ? (
+        <ChatWidget transcriptionId={transcriptionData.transcriptionId} />
+      ) : null}
     </div>
   );
 }

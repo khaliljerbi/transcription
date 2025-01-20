@@ -38,7 +38,7 @@ export const TranscriptText = ({
 
   if (truncatedContent) {
     return (
-      <div>
+      <div className="p-4 max-h-[420px] overflow-scroll">
         <div className={cn("flex flex-col gap-4")}>
           {truncatedContent.map((text, index) => (
             <div key={index} className="flex gap-4 overflow-hidden text-wrap">

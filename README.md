@@ -6,10 +6,11 @@
 npm install
 ```
 
-**Create db file under primsa:**
+**Create db file under primsa and migrate db:**
 
 ```bash
 touch prisma/dev.db
+npx primsa db push
 ```
 
 **Then create a .env file and copy content of .env.test, add your assembley ai key (must be pro to handle leMUR API)**

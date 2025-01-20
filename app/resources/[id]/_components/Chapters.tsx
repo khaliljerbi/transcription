@@ -13,8 +13,7 @@ export const ChapterSection = ({
   onChapterClick: (time: number) => void;
 }) => {
   return (
-    <section className="space-y-4">
-      <h3 className="text-xl font-semibold border-b pb-2">Chapters</h3>
+    <section className="space-y-4 p-4  max-h-[600px] overflow-scroll">
       <div className="space-y-3">
         {chapters?.map((chapter, index) => (
           <Card

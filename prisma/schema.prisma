@@ -6,22 +6,21 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Transcription {
-  id         String   @id @default(cuid())
-  resourceId String   @unique
-  text       String // SQLite doesn't have Text type, uses String
-  summary    String?
-  topics     String // Store stringified JSON
-  chapters   String? // Store stringified JSON
-  words      String? // Store stringified JSON
-  status     String   @default("PENDING") // Using string instead of enum
-  error      String?
-  language   String?  @default("en")
-  duration   Float?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(cuid())
+  resourceId      String   @unique
+  text            String // SQLite doesn't have Text type, uses String
+  summary         String?
+  topics          Json // Store stringified JSON
+  chapters        Json? // Store stringified JSON
+  words           Json? // Store stringified JSON
+  language        String?  @default("en")
+  duration        Float?
+  transcriptionId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

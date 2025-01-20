@@ -38,6 +38,7 @@ export const transcribeFile = async (fileUrl: string) => {
       topics,
       words: transcript.words,
       chapters: transcript.chapters,
+      transcriptionId: transcript.id,
     };
   } catch (error) {
     console.error("Transcription failed:", error);
@@ -87,6 +88,7 @@ export async function getOrCreateTranscription(resourceId: string) {
     const saved = await prisma.transcription.create({
       data: {
         resourceId,
+        transcriptionId: transcription.transcriptionId,
         text: transcription.text || "",
         summary: transcription.summary,
         topics: JSON.stringify(transcription.topics),

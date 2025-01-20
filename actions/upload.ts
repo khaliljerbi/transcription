@@ -4,9 +4,13 @@ import ytdl from "@distube/ytdl-core";
 
 export const getYoutubePublicUrl = async (url: string) => {
   try {
-    const agent = ytdl.createAgent(
-      JSON.parse(process.env.COOKIES_PARAMS as string)
-    );
+    let agent = undefined;
+    if (process.env.NODE_ENV === "production") {
+      agent = ytdl.createProxyAgent(
+        { uri: process.env.PROXY_URL as string },
+        JSON.parse(process.env.COOKIES_PARAMS as string)
+      );
+    }
     const info = await ytdl.getInfo(url, { agent });
     const audioStream = ytdl.downloadFromInfo(info, {
       quality: "lowest",

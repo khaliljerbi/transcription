@@ -33,6 +33,8 @@ enum MenuDetails {
   TOPICS = "TOPICS",
 }
 
+export const maxDuration = 30;
+
 export default function TranscriptionPage() {
   const [transcriptionData, setTranscriptionData] = useState<
     TranscriptionResult | null | undefined

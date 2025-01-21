@@ -19,6 +19,7 @@ model Transcription {
   topics          Json // Store stringified JSON
   chapters        Json? // Store stringified JSON
   words           Json? // Store stringified JSON
+  utterances      Json?
   language        String?  @default("en")
   duration        Float?
   transcriptionId String

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatTopic } from "@/lib/utils";
-import { Chapter, Word } from "assemblyai";
+import { Chapter, TranscriptUtterance, Word } from "assemblyai";
 import { Loader2, Menu } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -18,6 +18,7 @@ import { ChapterSection } from "./_components/Chapters";
 import ChatWidget from "./_components/ChatWidget";
 import { MediaPlayer } from "./_components/MediaPlayer";
 import { TranscriptText } from "./_components/TranscriptText";
+import Utterances from "./_components/Utterances";
 
 interface TranscriptionResult {
   transcriptionId: string;
@@ -26,11 +27,13 @@ interface TranscriptionResult {
   summary: string | null | undefined;
   words: Word[] | null | undefined;
   chapters: Chapter[] | null | undefined;
+  utterances: TranscriptUtterance[];
 }
 
 enum MenuDetails {
   TRANSCRIPT = "TRANSCRIPT",
   TOPICS = "TOPICS",
+  SPEAKER = "TRANSCRIPT WITH SPEAKER",
 }
 
 export const maxDuration = 60;
@@ -53,6 +56,7 @@ export default function TranscriptionPage() {
       setIsLoading(true);
       try {
         const result = await getOrCreateTranscription(id as string);
+
         setTranscriptionData(result);
       } catch (error) {
         console.error("Transcription failed:", error);
@@ -114,8 +118,17 @@ export default function TranscriptionPage() {
             )}
           </div>
         );
+      case MenuDetails.SPEAKER:
+        return transcriptionData ? (
+          <Utterances
+            transcriptId={transcriptionData.transcriptionId}
+            utterances={transcriptionData.utterances}
+          />
+        ) : null;
     }
   };
+
+  if (!transcriptionData) return <span>No data...</span>;
 
   return (
     <div className="container mx-auto px-4 py-6 relative">
@@ -147,6 +160,9 @@ export default function TranscriptionPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setMenu(MenuDetails.TOPICS)}>
                   Topics
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMenu(MenuDetails.SPEAKER)}>
+                  Transcript with Speakers
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

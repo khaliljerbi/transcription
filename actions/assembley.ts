@@ -16,15 +16,18 @@ export const transcribeFile = async (fileUrl: string) => {
       iab_categories: true,
       language_detection: true,
       auto_chapters: true,
+      speaker_labels: true,
     };
 
     const transcript = await assembleyClient.transcripts.transcribe(config);
 
-    const { response: summary } = await assembleyClient.lemur.task({
+    const summaryPromise = assembleyClient.lemur.task({
       transcript_ids: [transcript.id],
       prompt: SUMMARY_PROMPT,
       final_model: "anthropic/claude-3-5-sonnet",
     });
+
+    const { response: summary } = await summaryPromise;
 
     for (const [topic, relevance] of Object.entries(
       transcript.iab_categories_result!.summary
@@ -39,6 +42,7 @@ export const transcribeFile = async (fileUrl: string) => {
       words: transcript.words,
       chapters: transcript.chapters,
       transcriptionId: transcript.id,
+      utterances: transcript.utterances,
     };
   } catch (error) {
     console.error("Transcription failed:", error);
@@ -58,6 +62,7 @@ export async function getOrCreateTranscription(resourceId: string) {
         chapters: JSON.parse(existing.chapters as string),
         topics: JSON.parse(existing.topics as string),
         words: JSON.parse(existing.words as string),
+        utterances: JSON.parse(existing.utterances as string),
         summary: existing.summary,
       };
     }
@@ -94,6 +99,7 @@ export async function getOrCreateTranscription(resourceId: string) {
         topics: JSON.stringify(transcription.topics),
         chapters: JSON.stringify(transcription.chapters),
         words: JSON.stringify(transcription.words),
+        utterances: JSON.stringify(transcription.utterances),
       },
     });
 
@@ -102,6 +108,7 @@ export async function getOrCreateTranscription(resourceId: string) {
       chapters: JSON.parse(saved.chapters as string),
       topics: JSON.parse(saved.topics as string),
       words: JSON.parse(saved.words as string),
+      utterances: JSON.parse(saved.utterances as string),
       summary: saved.summary,
     };
   } catch (error) {

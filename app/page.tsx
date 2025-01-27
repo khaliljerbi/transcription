@@ -8,6 +8,7 @@ import { useState } from "react";
 export default function Home() {
   const [url, setUrl] = useState("");
   const router = useRouter();
+
   return (
     <main className="flex justify-center items-center min-h-screen flex-col space-y-4">
       <h1 className="text-5xl font-semibold">Audio transcription</h1>

@@ -4,16 +4,17 @@ import ytdl from "@distube/ytdl-core";
 
 export const getYoutubePublicUrl = async (url: string) => {
   try {
-    let agent = undefined;
-    if (process.env.NODE_ENV === "production") {
-      agent = ytdl.createProxyAgent({ uri: process.env.PROXY_URL as string });
-    }
-    const info = await ytdl.getInfo(url, { agent });
+    // if (process.env.NODE_ENV === "production") {
+    //   const cookies = JSON.parse(process.env.COOKIES_PARAMS as string);
+    //   agent = ytdl.createAgent(cookies);
+    // }
+    const info = await ytdl.getInfo(url, {
+      requestOptions: { highWaterMark: 1 << 20 },
+    });
     const audioStream = ytdl.downloadFromInfo(info, {
-      quality: "lowest",
+      quality: "highestaudio",
       filter: "audioonly",
-      highWaterMark: 1 << 25,
-      agent,
+      highWaterMark: 1 << 20,
     });
     return { audio: audioStream, id: info.videoDetails.videoId };
   } catch (error) {

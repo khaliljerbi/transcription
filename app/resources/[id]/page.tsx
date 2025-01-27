@@ -17,7 +17,6 @@ import type { YouTubePlayer } from "react-youtube";
 import { ChapterSection } from "./_components/Chapters";
 import ChatWidget from "./_components/ChatWidget";
 import { MediaPlayer } from "./_components/MediaPlayer";
-import { TranscriptText } from "./_components/TranscriptText";
 import Utterances from "./_components/Utterances";
 
 interface TranscriptionResult {
@@ -31,7 +30,6 @@ interface TranscriptionResult {
 }
 
 enum MenuDetails {
-  TRANSCRIPT = "TRANSCRIPT",
   TOPICS = "TOPICS",
   SPEAKER = "TRANSCRIPT WITH SPEAKER",
 }
@@ -42,11 +40,11 @@ export default function TranscriptionPage() {
   const [transcriptionData, setTranscriptionData] = useState<
     TranscriptionResult | null | undefined
   >(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [menu, setMenu] = useState<MenuDetails>(MenuDetails.TRANSCRIPT);
+  const [menu, setMenu] = useState<MenuDetails>(MenuDetails.SPEAKER);
   const playerRef = useRef<YouTubePlayer | null>(null);
 
   const { id } = useParams();
@@ -93,18 +91,15 @@ export default function TranscriptionPage() {
 
   const renderMenuContent = (content: MenuDetails) => {
     switch (content) {
-      case MenuDetails.TRANSCRIPT:
-        return (
-          <TranscriptText
-            words={transcriptionData?.words}
-            text={transcriptionData?.text}
-            currentTime={currentTime}
-            isPlaying={isPlaying}
-            isExpanded={isExpanded}
-            onExpandToggle={() => setIsExpanded(!isExpanded)}
-            onChapterClick={handleChapterClick}
+      case MenuDetails.SPEAKER:
+        return transcriptionData ? (
+          <Utterances
+            transcriptId={transcriptionData.transcriptionId}
+            utterances={transcriptionData.utterances}
+            onTimestampClick={handleChapterClick}
           />
-        );
+        ) : null;
+
       case MenuDetails.TOPICS:
         return (
           <div className="flex flex-wrap gap-2">
@@ -118,13 +113,6 @@ export default function TranscriptionPage() {
             )}
           </div>
         );
-      case MenuDetails.SPEAKER:
-        return transcriptionData ? (
-          <Utterances
-            transcriptId={transcriptionData.transcriptionId}
-            utterances={transcriptionData.utterances}
-          />
-        ) : null;
     }
   };
 
@@ -153,16 +141,11 @@ export default function TranscriptionPage() {
                 <Menu className="w-4 h-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => setMenu(MenuDetails.TRANSCRIPT)}
-                >
-                  Transcript
+                <DropdownMenuItem onClick={() => setMenu(MenuDetails.SPEAKER)}>
+                  Transcript with Speakers
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setMenu(MenuDetails.TOPICS)}>
                   Topics
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMenu(MenuDetails.SPEAKER)}>
-                  Transcript with Speakers
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -194,7 +177,10 @@ export default function TranscriptionPage() {
       </Tabs>
 
       {transcriptionData ? (
-        <ChatWidget transcriptionId={transcriptionData.transcriptionId} />
+        <ChatWidget
+          transcriptionId={transcriptionData.transcriptionId}
+          handleTimeClick={handleChapterClick}
+        />
       ) : null}
     </div>
   );

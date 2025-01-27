@@ -1,5 +1,7 @@
 import { handleRequest } from "@/actions/lemur";
+import { formatResponse } from "@/lib/utils";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
+import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { v4 } from "uuid";
 
@@ -12,14 +14,17 @@ interface Message {
 
 interface ChatWidgetProps {
   transcriptionId: string;
+  handleTimeClick: (time: number) => void;
 }
 
-const ChatWidget = ({ transcriptionId }: ChatWidgetProps) => {
+const ChatWidget = ({ transcriptionId, handleTimeClick }: ChatWidgetProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const { id: videoId } = useParams();
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -49,7 +54,11 @@ const ChatWidget = ({ transcriptionId }: ChatWidgetProps) => {
     setMessages((prev) => [...prev, loadingMessage]);
     setMessage("");
 
-    const response = await handleRequest(transcriptionId, text);
+    const response = await handleRequest(
+      transcriptionId,
+      videoId as string,
+      text
+    );
 
     setMessages((prev) => [
       ...prev.slice(0, -1),
@@ -57,6 +66,18 @@ const ChatWidget = ({ transcriptionId }: ChatWidgetProps) => {
     ]);
 
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleLinkClick = (e: React.MouseEvent<HTMLParagraphElement>) => {
+    const clickedElement = e.target as HTMLElement;
+    if (clickedElement.tagName === "A") {
+      e.preventDefault();
+      const url = new URL(clickedElement.getAttribute("href") || "");
+      const timeParam = url.searchParams.get("t");
+      if (timeParam) {
+        handleTimeClick(parseInt(timeParam));
+      }
+    }
   };
 
   return (
@@ -69,7 +90,7 @@ const ChatWidget = ({ transcriptionId }: ChatWidgetProps) => {
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-16 right-0 w-[350px] h-[500px] bg-white rounded-lg shadow-xl flex flex-col border">
+        <div className="absolute bottom-16 right-0 w-[450px] h-[500px] bg-white rounded-lg shadow-xl flex flex-col border">
           <div className="p-4 border-b bg-blue-500 text-white rounded-t-lg">
             <h3 className="font-semibold">
               Ask anything about this transcript
@@ -88,6 +109,13 @@ const ChatWidget = ({ transcriptionId }: ChatWidgetProps) => {
                   >
                     {m.loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : m.isBot ? (
+                      <p
+                        onClick={handleLinkClick}
+                        dangerouslySetInnerHTML={{
+                          __html: formatResponse(m.text as string),
+                        }}
+                      />
                     ) : (
                       <p>{m.text}</p>
                     )}

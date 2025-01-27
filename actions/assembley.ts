@@ -1,10 +1,12 @@
 "use server";
 import assembleyClient from "@/lib/assembly-ai";
 import prisma from "@/lib/db";
-import { SUMMARY_PROMPT } from "@/lib/prompts";
+import { UTTERANCE_PROMPT } from "@/lib/prompts";
 import { TranscribeParams } from "assemblyai";
 import { Readable } from "stream";
 import { getYoutubePublicUrl } from "./upload";
+
+const ASSEMBLEY_MODEL = "assemblyai/mistral-7b";
 
 export const transcribeFile = async (fileUrl: string) => {
   try {
@@ -20,14 +22,25 @@ export const transcribeFile = async (fileUrl: string) => {
     };
 
     const transcript = await assembleyClient.transcripts.transcribe(config);
-
-    const summaryPromise = assembleyClient.lemur.task({
+    const summaryPromise = assembleyClient.lemur.summary({
       transcript_ids: [transcript.id],
-      prompt: SUMMARY_PROMPT,
+      final_model: ASSEMBLEY_MODEL,
+    });
+    const utterancesPromise = assembleyClient.lemur.task({
+      transcript_ids: [transcript.id],
+      prompt:
+        UTTERANCE_PROMPT +
+        `\n uttrances=${JSON.stringify(
+          transcript.utterances?.map(
+            ({ words, channel, confidence, ...rest }) => rest
+          )
+        )}`,
       final_model: "anthropic/claude-3-5-sonnet",
     });
 
-    const { response: summary } = await summaryPromise;
+    const [{ response: summary }, { response: utterances }] = await Promise.all(
+      [summaryPromise, utterancesPromise]
+    );
 
     for (const [topic, relevance] of Object.entries(
       transcript.iab_categories_result!.summary
@@ -35,14 +48,22 @@ export const transcribeFile = async (fileUrl: string) => {
       topics[topic] = relevance * 100;
     }
 
+    const parsedData = JSON.parse(utterances);
+
+    const updatedUtterances =
+      transcript.utterances?.map(({ channel, confidence, words, ...ut }) => ({
+        ...ut,
+        speaker: parsedData[ut.start as number],
+      })) ?? [];
+
     return {
       text: transcript.text,
-      summary,
+      summary: summary,
       topics,
       words: transcript.words,
       chapters: transcript.chapters,
       transcriptionId: transcript.id,
-      utterances: transcript.utterances,
+      utterances: updatedUtterances,
     };
   } catch (error) {
     console.error("Transcription failed:", error);

@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import { usePlayerContext } from "@/context/PlayerContext";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from "react";
+import type { YouTubeEvent, YouTubePlayer } from "react-youtube";
 import YouTube from "react-youtube";
-import type { YouTubePlayer, YouTubeEvent } from "react-youtube";
 
 interface MediaPlayerProps {
   id: string;
-  onTimeUpdate: (time: number) => void;
-  onPlayingChange: (isPlaying: boolean) => void;
 }
 
 export interface MediaPlayerHandle {
@@ -15,7 +20,8 @@ export interface MediaPlayerHandle {
 }
 
 export const MediaPlayer = forwardRef<MediaPlayerHandle, MediaPlayerProps>(
-  ({ id, onTimeUpdate, onPlayingChange }, ref) => {
+  ({ id }, ref) => {
+    const { setCurrentTime, setIsPlaying } = usePlayerContext();
     const playerRef = useRef<YouTubePlayer | null>(null);
     const timeUpdateInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -36,24 +42,30 @@ export const MediaPlayer = forwardRef<MediaPlayerHandle, MediaPlayerProps>(
       };
     }, []);
 
-    const handleStateChange = (event: YouTubeEvent) => {
-      onPlayingChange(event.data === 1);
-    };
+    const handleStateChange = useCallback(
+      (event: YouTubeEvent) => {
+        setIsPlaying(event.data === 1);
+      },
+      [setIsPlaying]
+    );
 
-    const handleReady = (event: YouTubeEvent) => {
-      playerRef.current = event.target;
+    const handleReady = useCallback(
+      (event: YouTubeEvent) => {
+        playerRef.current = event.target;
 
-      if (timeUpdateInterval.current) {
-        clearInterval(timeUpdateInterval.current);
-      }
-
-      timeUpdateInterval.current = setInterval(() => {
-        if (playerRef.current) {
-          const currentTime = playerRef.current.getCurrentTime();
-          onTimeUpdate(currentTime);
+        if (timeUpdateInterval.current) {
+          clearInterval(timeUpdateInterval.current);
         }
-      }, 100);
-    };
+
+        timeUpdateInterval.current = setInterval(() => {
+          if (playerRef.current) {
+            const currentTime = playerRef.current.getCurrentTime();
+            setCurrentTime(currentTime);
+          }
+        }, 100);
+      },
+      [setCurrentTime]
+    );
 
     return (
       <div className="w-full aspect-video rounded-lg overflow-hidden">

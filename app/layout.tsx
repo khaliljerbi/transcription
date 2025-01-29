@@ -1,9 +1,9 @@
+import NavHeader from "@/components/custom/nav-header";
+import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
-import { cn } from "@/lib/utils";
-import NavHeader from "@/components/custom/nav-header";
 import { Toaster } from "sonner";
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,6 +19,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      {/* <head>
+        <script src="//unpkg.com/react-scan/dist/auto.global.js" />
+      </head> */}
       <body className={cn("min-h-screen", inter.className)}>
         <NavHeader />
         {children}

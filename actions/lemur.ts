@@ -1,5 +1,6 @@
 "use server";
 import assembleyClient from "@/lib/assembly-ai";
+import prisma from "@/lib/db";
 import { LEMUR_GLOBAL_CONTEXT, UTTERANCE_PROMPT } from "@/lib/prompts";
 import { TranscriptUtterance } from "assemblyai";
 
@@ -23,7 +24,7 @@ export const handleRequest = async (
       )
     ),
     final_model: "anthropic/claude-3-5-sonnet",
-    temperature: 0.5,
+    temperature: 0.3,
   });
 
   return response;
@@ -40,8 +41,36 @@ export const getUtterancesApi = async (
       `\n uttrances=${JSON.stringify(
         utterances?.map(({ words, channel, confidence, ...rest }) => rest)
       )}`,
-    final_model: "anthropic/claude-3-opus",
+    final_model: "anthropic/claude-3-5-sonnet",
   });
 
   return response;
 };
+
+export async function updateUtterancesData(
+  transcriptionId: string,
+  utterances: TranscriptUtterance[],
+  resourceId: string
+) {
+  try {
+    const response = await getUtterancesApi(transcriptionId, utterances);
+
+    const parsedData = JSON.parse(response);
+    const updatedUtterances = utterances.map((ut) => ({
+      ...ut,
+      speaker: parsedData[ut.start as number],
+    }));
+
+    await prisma.transcription.update({
+      where: { resourceId },
+      data: {
+        utterances: JSON.stringify(updatedUtterances),
+      },
+    });
+
+    return updatedUtterances;
+  } catch (error) {
+    console.error("Error updating utterances:", error);
+    throw error;
+  }
+}

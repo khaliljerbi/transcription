@@ -1,0 +1,219 @@
+"use client";
+import { getOrCreateTranscription } from "@/actions/assembley";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PlayerProvider } from "@/context/PlayerContext";
+import { formatTopic } from "@/lib/utils";
+import { Chapter, TranscriptUtterance, Word } from "assemblyai";
+import { Loader2, Menu } from "lucide-react";
+import { useParams } from "next/navigation";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { YouTubePlayer } from "react-youtube";
+import { ChapterSection } from "./Chapters";
+import ChatWidget from "./ChatWidget";
+import { MediaPlayer } from "./MediaPlayer";
+import Utterances from "./Utterances";
+
+interface TranscriptionResult {
+  transcriptionId: string;
+  topics: Record<string, number>;
+  text: string | null | undefined;
+  summary: string | null | undefined;
+  words: Word[] | null | undefined;
+  chapters: Chapter[] | null | undefined;
+  utterances: TranscriptUtterance[];
+}
+
+enum MenuDetails {
+  TOPICS = "TOPICS",
+  SPEAKER = "TRANSCRIPT WITH SPEAKER",
+}
+
+const MenuContent = React.memo(
+  ({
+    content,
+    transcriptionData,
+    onChapterClick,
+  }: {
+    content: MenuDetails;
+    transcriptionData: TranscriptionResult;
+    onChapterClick: (time: number) => void;
+  }) => {
+    const relevantTopics = useMemo(
+      () =>
+        Object.entries(transcriptionData.topics)
+          .filter(([_, score]) => score > 10)
+          .sort(([, a], [, b]) => b - a)
+          .map(([topic]) => topic),
+      [transcriptionData.topics]
+    );
+
+    switch (content) {
+      case MenuDetails.SPEAKER:
+        return transcriptionData ? (
+          <Utterances
+            utterances={transcriptionData.utterances}
+            onTimestampClick={onChapterClick}
+          />
+        ) : null;
+
+      case MenuDetails.TOPICS:
+        return (
+          <div className="flex flex-wrap gap-2">
+            {relevantTopics.map((topic) => (
+              <Badge key={topic} variant="secondary" className="text-sm">
+                {formatTopic(topic)}
+              </Badge>
+            ))}
+            {relevantTopics.length === 0 && (
+              <p className="text-gray-500">No relevant topics found</p>
+            )}
+          </div>
+        );
+    }
+  }
+);
+
+MenuContent.displayName = "MenuContent";
+
+const TabContent = React.memo(
+  ({
+    transcriptionData,
+    onChapterClick,
+  }: {
+    transcriptionData: TranscriptionResult;
+    onChapterClick: (time: number) => void;
+  }) => {
+    return (
+      <Tabs defaultValue="summary" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="chapters">Chapters</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="summary" className="mt-6">
+          <p className="text-muted-foreground">
+            {transcriptionData?.summary || "No summary available"}
+          </p>
+        </TabsContent>
+
+        <TabsContent value="chapters" className="mt-6">
+          <ChapterSection
+            chapters={transcriptionData?.chapters as Chapter[]}
+            onChapterClick={onChapterClick}
+          />
+        </TabsContent>
+      </Tabs>
+    );
+  }
+);
+
+TabContent.displayName = "TabContent";
+
+export default function TranscriptionPageContent() {
+  const [transcriptionData, setTranscriptionData] = useState<
+    TranscriptionResult | null | undefined
+  >(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [menu, setMenu] = useState<MenuDetails>(MenuDetails.SPEAKER);
+  const playerRef = useRef<YouTubePlayer | null>(null);
+
+  const { id } = useParams();
+
+  useEffect(() => {
+    const processTranscription = async () => {
+      setIsLoading(true);
+      try {
+        const result = await getOrCreateTranscription(id as string);
+        setTranscriptionData(result);
+      } catch (error) {
+        console.error("Transcription failed:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    processTranscription();
+  }, [id]);
+
+  const handleChapterClick = useCallback((time: number) => {
+    if (playerRef.current) {
+      playerRef.current.seekTo(time);
+    }
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 size={32} className="animate-spin mx-2" />
+        Please wait...
+      </div>
+    );
+  }
+
+  if (!transcriptionData) return <span>No data...</span>;
+
+  return (
+    <PlayerProvider>
+      <div className="container mx-auto px-4 py-6 relative">
+        <div className="grid md:grid-cols-3 gap-8 mb-8">
+          {/* Left side - Player */}
+          <div className="md:col-span-2">
+            {id && <MediaPlayer id={id as string} ref={playerRef} />}
+          </div>
+
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="flex justify-between items-center border-b pb-2 mb-4">
+              <h3 className="text-xl font-semibold ">{menu}</h3>
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Menu className="w-4 h-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem
+                    onClick={() => setMenu(MenuDetails.SPEAKER)}
+                  >
+                    Transcript with Speakers
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setMenu(MenuDetails.TOPICS)}>
+                    Topics
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <MenuContent
+              content={menu}
+              transcriptionData={transcriptionData}
+              onChapterClick={handleChapterClick}
+            />
+          </div>
+        </div>
+
+        <TabContent
+          transcriptionData={transcriptionData}
+          onChapterClick={handleChapterClick}
+        />
+
+        {transcriptionData && (
+          <ChatWidget
+            transcriptionId={transcriptionData.transcriptionId}
+            handleTimeClick={handleChapterClick}
+          />
+        )}
+      </div>
+    </PlayerProvider>
+  );
+}

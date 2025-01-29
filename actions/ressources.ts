@@ -1,7 +1,6 @@
 "use server";
 
 import prisma from "@/lib/db";
-import ytdl from "@distube/ytdl-core";
 
 export const fetchResources = async ({
   page,
@@ -16,7 +15,13 @@ export const fetchResources = async ({
     // Fetch paginated data and total count
     const [list, total] = await Promise.all([
       prisma.transcription.findMany({
-        select: { transcriptionId: true, resourceId: true, summary: true },
+        select: {
+          transcriptionId: true,
+          resourceId: true,
+          summary: true,
+          thumbnail: true,
+          title: true,
+        },
         orderBy: { createdAt: "desc" },
         skip,
         take: pageSize,
@@ -27,36 +32,16 @@ export const fetchResources = async ({
     const totalPages = Math.ceil(total / pageSize);
     const hasMore = page < totalPages;
 
-    // Process all YouTube info requests in parallel
-    const updatedList = await Promise.all(
-      list.map(async (entry) => {
-        try {
-          const info = await ytdl.getInfo(
-            `https://www.youtube.com/watch?v=${entry.resourceId}`
-          );
-          return {
-            id: entry.resourceId,
-            transcriptionId: entry.transcriptionId,
-            title: info.videoDetails.title,
-            description: entry.summary,
-            thumbnail: info.videoDetails.thumbnails,
-          };
-        } catch (error) {
-          console.error(
-            `Error fetching YouTube info for ${entry.resourceId}:`,
-            error
-          );
-          // Return a fallback object if YouTube info fetch fails
-          return {
-            id: entry.resourceId,
-            transcriptionId: entry.transcriptionId,
-            title: "Unable to fetch video details",
-            description: null,
-            thumbnail: [],
-          };
-        }
-      })
-    );
+    const updatedList = list.map((l) => ({
+      ...l,
+      id: l.resourceId,
+      description: l.summary,
+      thumbnail: JSON.parse(l.thumbnail) as Array<{
+        url: string;
+        width: number;
+        height: number;
+      }>,
+    }));
 
     return {
       list: updatedList,
@@ -67,6 +52,34 @@ export const fetchResources = async ({
     };
   } catch (error) {
     console.error("Error in fetchResources:", error);
-    throw error; // Re-throw to handle in the calling function
+    throw error;
+  }
+};
+
+export const getPreviewRessources = async () => {
+  try {
+    const list = await prisma.transcription.findMany({
+      select: {
+        transcriptionId: true,
+        resourceId: true,
+        summary: true,
+        thumbnail: true,
+        title: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+    });
+    return list.map((l) => ({
+      ...l,
+      id: l.resourceId,
+      description: l.summary,
+      thumbnail: JSON.parse(l.thumbnail) as Array<{
+        url: string;
+        width: number;
+        height: number;
+      }>,
+    }));
+  } catch (error) {
+    console.error("error fetching data", error);
   }
 };

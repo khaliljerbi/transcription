@@ -16,6 +16,7 @@ Rules:
 - Replace speaker with the speaker's name from the input
 - Preserve the exact format shown above
 - Do not add any additional fields or explanatory text
+- Respond only with the given JSON, without any other text
 `;
 
 export const LEMUR_GLOBAL_CONTEXT = (

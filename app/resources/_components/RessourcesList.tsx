@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getBestThumbnail } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
 interface ResourceItem {
@@ -63,13 +64,6 @@ export default function ResourceListing({
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // Get the best thumbnail for display
-  const getBestThumbnail = (thumbnails: ResourceItem["thumbnail"]) => {
-    const sortedThumbnails = [...thumbnails].sort((a, b) => a.width - b.width);
-    const mediumIndex = Math.floor(sortedThumbnails.length / 2);
-    return sortedThumbnails[mediumIndex] || sortedThumbnails[0];
   };
 
   if (isLoading) {

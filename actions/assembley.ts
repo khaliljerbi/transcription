@@ -51,7 +51,7 @@ export const transcribeFile = async (fileUrl: string) => {
     const parsedData = JSON.parse(utterances);
 
     const updatedUtterances =
-      transcript.utterances?.map(({ channel, confidence, words, ...ut }) => ({
+      transcript.utterances?.map(({ channel, confidence, ...ut }) => ({
         ...ut,
         speaker: parsedData[ut.start as number],
       })) ?? [];
@@ -84,7 +84,7 @@ export async function getOrCreateTranscription(resourceId: string) {
         topics: JSON.parse(existing.topics as string),
         words: JSON.parse(existing.words as string),
         utterances: JSON.parse(existing.utterances as string),
-        summary: existing.summary,
+        thumbnail: JSON.parse(existing.thumbnail as string),
       };
     }
 
@@ -97,7 +97,7 @@ export async function getOrCreateTranscription(resourceId: string) {
       throw new Error("could not process the request");
     }
 
-    const { audio } = data;
+    const { audio, title, thumbnail } = data;
 
     // If not found, create new transcription
     const uploadResponse = await assembleyClient.files.upload(
@@ -121,6 +121,8 @@ export async function getOrCreateTranscription(resourceId: string) {
         chapters: JSON.stringify(transcription.chapters),
         words: JSON.stringify(transcription.words),
         utterances: JSON.stringify(transcription.utterances),
+        title,
+        thumbnail: JSON.stringify(thumbnail),
       },
     });
 
@@ -131,6 +133,8 @@ export async function getOrCreateTranscription(resourceId: string) {
       words: JSON.parse(saved.words as string),
       utterances: JSON.parse(saved.utterances as string),
       summary: saved.summary,
+      title,
+      thumbnail: JSON.parse(saved.thumbnail as string),
     };
   } catch (error) {
     console.error("****************error", error);

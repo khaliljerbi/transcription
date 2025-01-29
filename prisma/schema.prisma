@@ -21,7 +21,8 @@ model Transcription {
   words           Json? // Store stringified JSON
   utterances      Json?
   language        String?  @default("en")
-  duration        Float?
+  thumbnail       String
+  title           String
   transcriptionId String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

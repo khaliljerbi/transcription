@@ -37,3 +37,16 @@ export const formatResponse = (text: string) => {
     .replace(/<li>/g, '<li class="mb-2">')
     .replace(/<h3>/g, '<h3 class="text-xl font-bold mb-3">');
 };
+
+// Get the best thumbnail for display
+export const getBestThumbnail = (
+  thumbnails: {
+    url: string;
+    width: number;
+    height: number;
+  }[]
+) => {
+  const sortedThumbnails = [...thumbnails].sort((a, b) => a.width - b.width);
+  const mediumIndex = Math.floor(sortedThumbnails.length / 2);
+  return sortedThumbnails[mediumIndex] || sortedThumbnails[0];
+};

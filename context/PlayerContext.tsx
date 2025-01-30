@@ -1,26 +1,52 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+// PlayerContext.tsx
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { YouTubePlayer } from "react-youtube";
 
-interface PlayerContextType {
+interface PlayerRefContextType {
+  playerRef: React.MutableRefObject<YouTubePlayer | null>;
+}
+
+interface PlayerStateContextType {
   currentTime: number;
   isPlaying: boolean;
   setCurrentTime: (time: number) => void;
   setIsPlaying: (playing: boolean) => void;
 }
 
-export const PlayerContext = createContext<PlayerContextType>({
+const PlayerRefContext = createContext<PlayerRefContextType>({
+  playerRef: { current: null },
+});
+
+const PlayerStateContext = createContext<PlayerStateContextType>({
   currentTime: 0,
   isPlaying: false,
   setCurrentTime: () => {},
   setIsPlaying: () => {},
 });
 
-export const usePlayerContext = () => useContext(PlayerContext);
+// Separate hooks for each context
+export const usePlayerRef = () => useContext(PlayerRefContext);
+export const usePlayerState = () => useContext(PlayerStateContext);
 
 export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
+  const playerRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const value = useMemo(
+  const refValue = useMemo(
+    () => ({
+      playerRef,
+    }),
+    [playerRef]
+  );
+
+  const stateValue = useMemo(
     () => ({
       currentTime,
       isPlaying,
@@ -31,6 +57,10 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   return (
-    <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>
+    <PlayerRefContext.Provider value={refValue}>
+      <PlayerStateContext.Provider value={stateValue}>
+        {children}
+      </PlayerStateContext.Provider>
+    </PlayerRefContext.Provider>
   );
 };

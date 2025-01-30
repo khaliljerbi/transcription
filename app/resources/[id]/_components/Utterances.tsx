@@ -1,4 +1,4 @@
-import { usePlayerContext } from "@/context/PlayerContext";
+import { usePlayerState } from "@/context/PlayerContext";
 import { cn, formatTime } from "@/lib/utils";
 import { TranscriptUtterance } from "assemblyai";
 import React, {
@@ -105,7 +105,7 @@ const Row = React.memo(
       listRef: React.RefObject<List>;
     };
   }) => {
-    const { currentTime, isPlaying } = usePlayerContext();
+    const { currentTime, isPlaying } = usePlayerState();
     const { utterances, onTimestampClick, measurerRef, rowHeights, listRef } =
       data;
     const utt = utterances[index];
@@ -174,8 +174,7 @@ function Utterances({ utterances, onTimestampClick }: UtterancesProps) {
   const lastScrolledRef = useRef(0);
   const lastScrolledIndexRef = useRef(-1);
 
-  const { currentTime, isPlaying } = usePlayerContext();
-  const previousTimeRef = useRef(currentTime);
+  const { currentTime, isPlaying } = usePlayerState();
 
   useEffect(() => {
     if (!isReady && utterances.length > 0) {

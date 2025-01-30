@@ -1,6 +1,6 @@
 "use client";
 
-import { usePlayerContext } from "@/context/PlayerContext";
+import { usePlayerState } from "@/context/PlayerContext";
 import {
   forwardRef,
   useCallback,
@@ -21,7 +21,7 @@ export interface MediaPlayerHandle {
 
 export const MediaPlayer = forwardRef<MediaPlayerHandle, MediaPlayerProps>(
   ({ id }, ref) => {
-    const { setCurrentTime, setIsPlaying } = usePlayerContext();
+    const { setCurrentTime, setIsPlaying } = usePlayerState();
     const playerRef = useRef<YouTubePlayer | null>(null);
     const timeUpdateInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -70,6 +70,7 @@ export const MediaPlayer = forwardRef<MediaPlayerHandle, MediaPlayerProps>(
     return (
       <div className="w-full aspect-video rounded-lg overflow-hidden">
         <YouTube
+          id={"player-youtube"}
           videoId={id}
           onReady={handleReady}
           onStateChange={handleStateChange}

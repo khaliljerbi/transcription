@@ -1,31 +1,55 @@
 "use server";
 import assembleyClient from "@/lib/assembly-ai";
 import prisma from "@/lib/db";
-import { LEMUR_GLOBAL_CONTEXT, UTTERANCE_PROMPT } from "@/lib/prompts";
-import { TranscriptUtterance } from "assemblyai";
+import {
+  GENERAL_PROMPT,
+  LEMUR_GLOBAL_CONTEXT,
+  UTTERANCE_PROMPT,
+} from "@/lib/prompts";
+import { LemurTaskParams, TranscriptUtterance } from "assemblyai";
+
+interface Transcriptions {
+  summary: string | null;
+  resourceId: string;
+  transcriptionId: string;
+}
 
 export const handleRequest = async (
-  transcriptionId: string,
+  transcriptions: Transcriptions[] | string,
   videoId: string,
   prompt: string
 ) => {
-  const transcript = await assembleyClient.transcripts.get(transcriptionId);
-  const { response } = await assembleyClient.lemur.task({
-    transcript_ids: [transcriptionId],
-    prompt: LEMUR_GLOBAL_CONTEXT(
-      videoId,
-      prompt,
-      JSON.stringify(
-        transcript.chapters?.map((c) => ({
-          text: c.summary,
-          start: c.start,
-          end: c.end,
-        }))
-      )
-    ),
+  let params: LemurTaskParams = {
     final_model: "anthropic/claude-3-5-sonnet",
-    temperature: 0.3,
-  });
+    temperature: 0.7,
+    prompt: "",
+  };
+
+  if (typeof transcriptions === "string") {
+    const transcript = await assembleyClient.transcripts.get(transcriptions);
+    params = {
+      ...params,
+      transcript_ids: [transcriptions],
+      prompt: LEMUR_GLOBAL_CONTEXT(
+        videoId,
+        prompt,
+        JSON.stringify(
+          transcript.chapters?.map((c) => ({
+            text: c.summary,
+            start: c.start,
+            end: c.end,
+          }))
+        )
+      ),
+    };
+  } else {
+    params = {
+      ...params,
+      input_text: JSON.stringify(transcriptions),
+      prompt: GENERAL_PROMPT(JSON.stringify(transcriptions), prompt),
+    };
+  }
+  const { response } = await assembleyClient.lemur.task(params);
 
   return response;
 };

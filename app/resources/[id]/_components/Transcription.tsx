@@ -8,21 +8,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlayerProvider } from "@/context/PlayerContext";
+import { usePlayerRef } from "@/context/PlayerContext";
 import { formatTopic } from "@/lib/utils";
 import { Chapter, TranscriptUtterance, Word } from "assemblyai";
 import { Loader2, Menu } from "lucide-react";
 import { useParams } from "next/navigation";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import type { YouTubePlayer } from "react-youtube";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ChapterSection } from "./Chapters";
-import ChatWidget from "./ChatWidget";
 import { MediaPlayer } from "./MediaPlayer";
 import Utterances from "./Utterances";
 
@@ -128,7 +120,7 @@ export default function TranscriptionPageContent() {
   >(null);
   const [isLoading, setIsLoading] = useState(false);
   const [menu, setMenu] = useState<MenuDetails>(MenuDetails.SPEAKER);
-  const playerRef = useRef<YouTubePlayer | null>(null);
+  const { playerRef } = usePlayerRef();
 
   const { id } = useParams();
 
@@ -166,54 +158,43 @@ export default function TranscriptionPageContent() {
   if (!transcriptionData) return <span>No data...</span>;
 
   return (
-    <PlayerProvider>
-      <div className="container mx-auto px-4 py-6 relative">
-        <div className="grid md:grid-cols-3 gap-8 mb-8">
-          {/* Left side - Player */}
-          <div className="md:col-span-2">
-            {id && <MediaPlayer id={id as string} ref={playerRef} />}
-          </div>
-
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <div className="flex justify-between items-center border-b pb-2 mb-4">
-              <h3 className="text-xl font-semibold ">{menu}</h3>
-              <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <Menu className="w-4 h-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem
-                    onClick={() => setMenu(MenuDetails.SPEAKER)}
-                  >
-                    Transcript with Speakers
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setMenu(MenuDetails.TOPICS)}>
-                    Topics
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <MenuContent
-              content={menu}
-              transcriptionData={transcriptionData}
-              onChapterClick={handleChapterClick}
-            />
-          </div>
+    <div className="container mx-auto px-4 py-6 relative">
+      <div className="grid md:grid-cols-3 gap-8 mb-8">
+        {/* Left side - Player */}
+        <div className="md:col-span-2">
+          {id && <MediaPlayer id={id as string} ref={playerRef} />}
         </div>
 
-        <TabContent
-          transcriptionData={transcriptionData}
-          onChapterClick={handleChapterClick}
-        />
+        <div className="bg-white rounded-lg p-6 shadow-sm">
+          <div className="flex justify-between items-center border-b pb-2 mb-4">
+            <h3 className="text-xl font-semibold ">{menu}</h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Menu className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setMenu(MenuDetails.SPEAKER)}>
+                  Transcript with Speakers
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMenu(MenuDetails.TOPICS)}>
+                  Topics
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-        {transcriptionData && (
-          <ChatWidget
-            transcriptionId={transcriptionData.transcriptionId}
-            handleTimeClick={handleChapterClick}
+          <MenuContent
+            content={menu}
+            transcriptionData={transcriptionData}
+            onChapterClick={handleChapterClick}
           />
-        )}
+        </div>
       </div>
-    </PlayerProvider>
+
+      <TabContent
+        transcriptionData={transcriptionData}
+        onChapterClick={handleChapterClick}
+      />
+    </div>
   );
 }

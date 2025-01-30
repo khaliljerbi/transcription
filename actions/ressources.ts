@@ -83,3 +83,18 @@ export const getPreviewRessources = async () => {
     console.error("error fetching data", error);
   }
 };
+
+export const getAllTranscriptions = async () => {
+  try {
+    const list = await prisma.transcription.findMany({
+      select: {
+        transcriptionId: true,
+        resourceId: true,
+        summary: true,
+      },
+    });
+    return list;
+  } catch (error) {
+    console.error("error fetching data", error);
+  }
+};

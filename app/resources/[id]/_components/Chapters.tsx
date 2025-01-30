@@ -1,4 +1,4 @@
-import { usePlayerContext } from "@/context/PlayerContext";
+import { usePlayerState } from "@/context/PlayerContext";
 import { Chapter } from "assemblyai";
 import { useMemo } from "react";
 import { ChapterItem } from "./ChapterItem";
@@ -11,7 +11,7 @@ export const ChapterSection = ({
   chapters: Chapter[];
   onChapterClick: (time: number) => void;
 }) => {
-  const { currentTime } = usePlayerContext();
+  const { currentTime } = usePlayerState();
   const activeChapterIndex = useMemo(() => {
     if (!chapters) return -1;
     return chapters.findIndex(

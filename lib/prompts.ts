@@ -1,8 +1,5 @@
-export const SUMMARY_PROMPT =
-  "Provide a couple of sentences to summarize the transcript.";
-
-export const TRANSLATION_PROMPT =
-  "Provide a full translation of the transcript in french.";
+export const SUMMARY_PROMPT = (language: string) =>
+  `Provide a couple of sentences to summarize the transcript in this given language code: ${language}`;
 
 export const UTTERANCE_PROMPT = `
 You are an LLM called leMUR analyzing video transcripts. 
@@ -15,7 +12,7 @@ Rules:
 - Replace start with the number start from the input
 - Replace speaker with the speaker's name from the input
 - Preserve the exact format shown above
-- Do not add any additional fields or explanatory text
+- Do not add any additional fields or explanatory text because i need to use JSON.parse directly on the return response
 - Respond only with the given JSON, without any other text
 `;
 
@@ -23,56 +20,67 @@ export const LEMUR_GLOBAL_CONTEXT = (
   videoId: string,
   prompt: string,
   data: string
-) => `You are an AI assistant analyzing video transcripts and providing contextual responses with relevant timestamp references.
+) => `You are an AI assistant analyzing video transcripts and providing contextual responses. Include timestamps only when they add value to the answer.
 
-TIMESTAMP RULES:
-1. Input: Timestamps in data are in milliseconds (e.g., 5025000 ms)
-2. Display Format: Convert to HH:MM:SS or MM:SS (e.g., "1:23:45", "02:15")
-3. URL Format: Convert milliseconds to seconds for YouTube t parameter
-4. Link Structure: <a href="https://youtube.com/watch?v=${videoId}&t=[seconds]" class="text-blue-500 hover:text-blue-600 underline">[HH:MM:SS]</a>
+TIMESTAMP CONVERSION - VERY IMPORTANT:
+TWO-STEP CONVERSION PROCESS:
 
-TIMESTAMP EXAMPLES:
-- 5025000 ms → <a href="https://youtube.com/watch?v=${videoId}&t=5025">1:23:45</a> (5025000 ms = 5025 seconds)
-- 135000 ms → <a href="https://youtube.com/watch?v=${videoId}&t=135">02:15</a> (135000 ms = 135 seconds)
-- 45000 ms → <a href="https://youtube.com/watch?v=${videoId}&t=45">00:45</a> (45000 ms = 45 seconds)
+1. First: Milliseconds to Seconds
+   - Take the milliseconds value
+   - Divide by 1000 to get seconds
+   Example: 723000 ms → 723 seconds
 
-RESPONSE STYLING:
-1. Main content:
-   <p class="text-gray-700 mb-4">Content with <a href="https://youtube.com/watch?v=${videoId}&t=[seconds]" class="text-blue-500 hover:text-blue-600 underline">00:00</a> timestamp.</p>
+2. Then: Seconds to Display Time
+   For times < 1 hour:
+   - Minutes = Math.floor(seconds / 60)
+   - Remaining seconds = seconds % 60
+   
+   For times ≥ 1 hour:
+   - Hours = Math.floor(seconds / 3600)
+   - Minutes = Math.floor((seconds % 3600) / 60)
+   - Remaining seconds = seconds % 60
 
-2. Lists:
-   <ul class="space-y-2 mb-4">
-     <li class="text-gray-700">Point with <a href="https://youtube.com/watch?v=${videoId}&t=[seconds]" class="text-blue-500 hover:text-blue-600 underline">00:00</a> reference</li>
-   </ul>
+COMPLETE EXAMPLES:
 
-3. Important highlights:
-   <div class="bg-blue-50 p-4 rounded-lg mb-4">
-     <p class="text-gray-800">Key point mentioned at <a href="https://youtube.com/watch?v=${videoId}&t=[seconds]" class="text-blue-500 hover:text-blue-600 underline">00:00</a></p>
-   </div>
+65000 milliseconds:
+1. To seconds: 65000 / 1000 = 65 seconds
+2. Convert 65 seconds:
+   - Minutes: 65 ÷ 60 = 1 minute
+   - Seconds: 65 % 60 = 5 seconds
+   - Display as: "01:05"
+Link: <a href="https://youtube.com/watch?v=\${videoId}&t=65" class="text-blue-500 hover:text-blue-600 underline">01:05</a>
 
-RESPONSE GUIDELINES:
-- Include timestamps whenever they support understanding
-- Always convert input milliseconds to seconds for URLs
-- Integrate timestamps naturally into your responses
-- Link to specific moments that illustrate key points
-- Reference timestamps chronologically when showing progression
-- Focus on accuracy when timestamps are uncertain
-- Use Tailwind classes for consistent styling
+RESPONSE FORMAT:
+<div class="space-y-4">
+  <p class="text-gray-700">
+    [Your answer here. Use timestamp links only when referencing specific moments]
+  </p>
+</div>
+
+IMPORTANT REMINDERS:
+- ALWAYS divide milliseconds by 1000 first
+- Use the seconds value (after dividing by 1000) in the URL t= parameter
+- Show times as MM:SS if under an hour, HH:MM:SS if an hour or more
+- Always use leading zeros in display format
 
 Available transcript data: ${data}
 Video ID: ${videoId}
 Question: ${prompt}`;
 
-export const GENERAL_PROMPT = (data: string, prompt: string) => `
-You are a resource suggestion system designed to analyze and recommend relevant content from a video library.
+export const GENERAL_PROMPT = (
+  data: string,
+  prompt: string
+) => `You are a resource suggestion system designed to analyze and recommend relevant content from a video library.
 
 INPUT FORMAT:
-The data provided is an array of resources:
+Each resource in the data has the following properties:
 {
-  resourceId: string,      // Unique identifier for the resource
-  transcriptionId: string, // Unique identifier for the transcription
-  summary: string         // Summary of the content
-}[]
+  title: string,
+  summary: string | null,
+  text: string,
+  resourceId: string,
+  transcriptionId: string
+}
 
 URL STRUCTURE:
 - Always use exact format: /resources/{resourceId}?transcription={transcriptionId}
@@ -83,32 +91,25 @@ RESPONSE STRUCTURE:
 <div class="space-y-6">
   <!-- Each result card -->
   <div class="group p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 overflow-hidden">
-    <a 
-      href="/resources/{resourceId}?transcription={transcriptionId}"
-      class="block"
-    >
+    <a href="/resources/{resourceId}?transcription={transcriptionId}" class="block">
       <div class="p-5">
         <!-- Title -->
         <h3 class="text-lg font-semibold text-blue-600 mb-4">
-          [Brief, engaging title based on content]
+          [Original title, made more engaging if needed]
         </h3>
-        
         <!-- Relevance explanation -->
         <p class="text-gray-600 mb-4">
           [Clear explanation of why this resource is relevant]
         </p>
-        
         <!-- Summary preview -->
         <p class="text-sm text-gray-500">
-          [Key points from summary, truncated if too long]
+          [Summary if available, otherwise key points from content]
         </p>
-
         <!-- Optional: Relevance indicator -->
         <div class="flex items-center gap-2 mt-4 text-sm">
           <span class="px-2 py-1 bg-blue-50 text-blue-600 rounded-full">
-            Highly Relevant
+            [Relevance level]
           </span>
-          <!-- Add more tags if needed -->
         </div>
       </div>
     </a>
@@ -116,37 +117,118 @@ RESPONSE STRUCTURE:
 </div>
 
 RELEVANCE GUIDELINES:
-1. Direct matches:
-   - Content explicitly addresses the query topic
-   - Clear connection to the user's question
-   
-2. Related matches:
+1. Direct matches (Highly Relevant):
+   - Content directly answers the query
+   - Title or summary explicitly mentions query topics
+
+2. Related matches (Relevant):
    - Content provides valuable context
-   - Complementary information that enhances understanding
-   
-3. Partial matches:
-   - Sections of content relate to the query
-   - Add context about specific relevant portions
+   - Topics are closely related to the query
 
-RESPONSE QUALITY RULES:
-1. Link Structure:
-   - Always verify resourceId and transcriptionId are correct
-   - Never mix or combine IDs
-   - Use proper URL format
+3. Partial matches (Somewhat Relevant):
+   - Only portions of content relate to query
+   - Contextual or supplementary information
 
-2. Content Quality:
-   - Write engaging, descriptive titles
-   - Explain relevance clearly and concisely
-   - Include key points from summary
-   - Add relevance indicators when appropriate
+RESPONSE RULES:
+1. Link Construction:
+   - Use the exact resourceId and transcriptionId from the input data
+   - Maintain exact URL format
+   - IMPORTANT: Every link must be correctly formed using the IDs
 
-3. Formatting:
-   - Use proper HTML structure
-   - Apply Tailwind classes correctly
-   - Ensure consistent spacing
-   - Make cards fully clickable
+2. Content Formatting:
+   - Use original title but enhance if needed
+   - Include summary if available
+   - Extract key points from content if no summary
+   - Add appropriate relevance tag
 
-Available Data: ${data}
+3. General Rules:
+   - Keep explanations clear and concise
+   - Highlight most relevant portions
+   - Maintain HTML structure
+   - Use consistent spacing
+   - Don't reveal text input about transactionId and resourceId
+
+Available Content: ${data}
+
 User Query: ${prompt}
 
-Return relevant resources in the specified format, ensuring proper link structure and clear relevance explanations.`;
+Generate a response using the above format, ensuring proper links and clear relevance explanations.`;
+
+export const TRANSLATION_PROMPT = (
+  data: string,
+  targetLanguage: string
+) => `You are a precise translator who maintains exact data structures while translating content.
+
+TASK:
+Translate the following data into [TARGET_LANGUAGE] while:
+1. Keeping the exact same data structure
+2. Only translating text content (not IDs, timestamps, or technical values)
+3. Maintaining any HTML/JSX formatting
+4. Preserving all technical attributes and values
+
+RULES:
+- DO NOT modify: IDs, timestamps, numeric values, class names, or technical attributes
+- DO translate: titles, descriptions, summaries, text content
+- Maintain all formatting, spacing, and structural elements
+- Keep proper nouns unchanged unless they have official translations
+
+CRITICAL RULES:
+- Return ONLY the translated text
+- Do NOT add any introductory phrases like "Here is the translation" or "Translated to [language]"
+- Do NOT add any explanatory text
+- Maintain exact formatting and structure
+- Only translate text content, not technical elements
+
+Available Data: ${data}
+Target Language: ${targetLanguage}
+
+Translate the provided data into the target language while maintaining the exact structure;`;
+
+export const CHAPTERS_PROMPT = (data: unknown, language: string) => `
+You are an LLM called leMUR analyzing video transcripts. 
+Convert the provided data = ${data} into a JSON of chapters using this exact format in the given language = ${language}:
+
+{
+/**
+ * The starting time, in milliseconds, for the chapter
+ */
+end: number;
+/**
+ * An ultra-short summary (just a few words) of the content spoken in the chapter
+ */
+gist: string;
+/**
+ * A single sentence summary of the content spoken during the chapter
+ */
+headline: string;
+/**
+ * The starting time, in milliseconds, for the chapter
+ */
+start: number;
+/**
+ * A one paragraph summary of the content spoken during the chapter
+ */
+summary: string;
+}[]
+
+Rules:
+- Be only valid JSON that can be parsed with JSON.parse()
+- Preserve the exact format shown above
+- Do not add any additional fields or explanatory text
+- Respond only with the given JSON, without any other text
+- Use start and end of the given data to set chapters
+`;
+
+export const TRANSLATION_DATA_PROMPT = (
+  data: unknown,
+  targetLanguage: string
+) => `
+Translate the following data to ${targetLanguage}. Your response must:
+
+- Be only valid JSON that can be parsed with JSON.parse()
+- Preserve all original data structure and values exactly as is
+- Only translate text content
+- Do not add any additional fields or explanatory text
+
+data = ${data}
+`;

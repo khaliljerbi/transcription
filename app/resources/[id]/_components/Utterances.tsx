@@ -60,6 +60,8 @@ const Timestamp = React.memo(
   )
 );
 
+Timestamp.displayName = "Timestamp";
+
 const Word = React.memo(
   ({
     word,
@@ -81,6 +83,8 @@ const Word = React.memo(
     prev.isHighlighted === next.isHighlighted &&
     prev.word.text === next.word.text
 );
+
+Word.displayName = "Word";
 
 interface UtterancesProps {
   utterances: TranscriptUtterance[];
@@ -164,6 +168,8 @@ const Row = React.memo(
   },
   areEqual
 );
+
+Row.displayName = "Row";
 
 function Utterances({ utterances, onTimestampClick }: UtterancesProps) {
   const listRef = useRef<any>(null);

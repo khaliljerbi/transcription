@@ -1,16 +1,20 @@
 "use server";
 import assembleyClient from "@/lib/assembly-ai";
 import prisma from "@/lib/db";
-import { UTTERANCE_PROMPT } from "@/lib/prompts";
-import { TranscribeParams } from "assemblyai";
+import {
+  CHAPTERS_PROMPT,
+  SUMMARY_PROMPT,
+  TRANSLATION_DATA_PROMPT,
+  UTTERANCE_PROMPT,
+} from "@/lib/prompts";
+import { Chapter, TranscribeParams } from "assemblyai";
 import { Readable } from "stream";
 import { getYoutubePublicUrl } from "./upload";
-
-const ASSEMBLEY_MODEL = "assemblyai/mistral-7b";
 
 export const transcribeFile = async (fileUrl: string) => {
   try {
     const topics: Record<string, number> = {};
+    let chapters: Chapter[] = [];
 
     const config: TranscribeParams = {
       audio_url: fileUrl,
@@ -22,9 +26,10 @@ export const transcribeFile = async (fileUrl: string) => {
     };
 
     const transcript = await assembleyClient.transcripts.transcribe(config);
-    const summaryPromise = assembleyClient.lemur.summary({
+    const summaryPromise = assembleyClient.lemur.task({
       transcript_ids: [transcript.id],
-      final_model: ASSEMBLEY_MODEL,
+      final_model: "anthropic/claude-3-5-sonnet",
+      prompt: SUMMARY_PROMPT(transcript.language_code || "en"),
     });
     const utterancesPromise = assembleyClient.lemur.task({
       transcript_ids: [transcript.id],
@@ -56,12 +61,39 @@ export const transcribeFile = async (fileUrl: string) => {
         speaker: parsedData[ut.start as number],
       })) ?? [];
 
+    if (transcript.language_code === "fr") {
+      const chaptersPromise = assembleyClient.lemur.task({
+        transcript_ids: [transcript.id],
+        prompt: CHAPTERS_PROMPT(
+          JSON.stringify(
+            transcript.utterances?.map(
+              ({ words, channel, confidence, ...rest }) => rest
+            )
+          ),
+          transcript.language_code
+        ),
+        final_model: "anthropic/claude-3-5-sonnet",
+      });
+
+      const topicsPromise = assembleyClient.lemur.task({
+        transcript_ids: [transcript.id],
+        prompt: TRANSLATION_DATA_PROMPT(topics, "fr"),
+        final_model: "anthropic/claude-3-5-sonnet",
+      });
+
+      const [{ response: translatedChapters }] = await Promise.all([
+        chaptersPromise,
+      ]);
+
+      chapters = JSON.parse(translatedChapters);
+    }
+
     return {
       text: transcript.text,
       summary: summary,
       topics,
       words: transcript.words,
-      chapters: transcript.chapters,
+      chapters: chapters.length > 0 ? chapters : transcript.chapters,
       transcriptionId: transcript.id,
       utterances: updatedUtterances,
     };

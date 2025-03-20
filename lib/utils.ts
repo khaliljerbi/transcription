@@ -50,3 +50,34 @@ export const getBestThumbnail = (
   const mediumIndex = Math.floor(sortedThumbnails.length / 2);
   return sortedThumbnails[mediumIndex] || sortedThumbnails[0];
 };
+
+// Function to extract a JSON object from a text string
+export function extractJsonObject(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    const objectMatch = text.match(/({[\s\S]*?})/);
+
+    if (objectMatch && objectMatch[1]) {
+      try {
+        return JSON.parse(objectMatch[1]);
+      } catch (parseError) {
+        console.error("Found object-like text but couldn't parse:", parseError);
+
+        const firstBrace = text.indexOf("{");
+        const lastBrace = text.lastIndexOf("}");
+
+        if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
+          const jsonCandidate = text.substring(firstBrace, lastBrace + 1);
+          try {
+            return JSON.parse(jsonCandidate);
+          } catch (error) {
+            console.error("Failed to parse extracted JSON candidate:", error);
+          }
+        }
+      }
+    }
+
+    throw new Error("Couldn't extract a valid JSON object from the string");
+  }
+}

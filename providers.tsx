@@ -1,7 +1,7 @@
 "use client";
 
-import { LanguageProvider } from "./context/LanguageContext";
-import { PlayerProvider } from "./context/PlayerContext";
+import { LanguageProvider } from "./context/language-context";
+import { PlayerProvider } from "./context/player-context";
 
 function Providers({ children }: { children: React.ReactNode }) {
   return (

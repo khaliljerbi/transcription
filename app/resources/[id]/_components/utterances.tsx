@@ -1,4 +1,4 @@
-import { usePlayerState } from "@/context/PlayerContext";
+import { usePlayerState } from "@/context/player-context";
 import { cn, formatTime } from "@/lib/utils";
 import { TranscriptUtterance } from "assemblyai";
 import React, {

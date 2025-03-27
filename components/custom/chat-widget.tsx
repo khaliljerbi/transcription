@@ -1,6 +1,5 @@
 "use client";
-import { handleRequest } from "@/actions/lemur";
-import { usePlayerRef } from "@/context/PlayerContext";
+import { usePlayerRef } from "@/context/player-context";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -69,15 +68,29 @@ const ChatWidget = ({ transcriptions }: ChatWidgetProps) => {
     setMessages((prev) => [...prev, loadingMessage]);
     setMessage("");
 
-    const response = await handleRequest(
-      searchTranscription ? searchTranscription : transcriptions,
-      (videoId as string) || "",
-      text
-    );
+    const response = await fetch("/api/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: text,
+        videoId,
+        transcriptionId: searchTranscription
+          ? searchTranscription
+          : transcriptions,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Search failed");
+    }
+
+    const { data } = await response.json();
 
     setMessages((prev) => [
       ...prev.slice(0, -1),
-      { id: v4(), text: response, isBot: true },
+      { id: v4(), text: data, isBot: true },
     ]);
 
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -88,7 +101,7 @@ const ChatWidget = ({ transcriptions }: ChatWidgetProps) => {
       const clickedElement = e.target as HTMLElement;
       if (clickedElement.tagName === "A") {
         e.preventDefault();
-        let url = clickedElement.getAttribute("href") || "";
+        const url = clickedElement.getAttribute("href") || "";
 
         if (url.includes("t=")) {
           const fullUrl = new URL(url);
@@ -105,7 +118,7 @@ const ChatWidget = ({ transcriptions }: ChatWidgetProps) => {
         router.push(url);
       }
     },
-    [searchTranscription]
+    [isResourcePage, playerRef, router]
   );
 
   return (

@@ -1,5 +1,5 @@
 import { getAllTranscriptions } from "@/actions/ressources";
-import ChatWidget from "@/components/custom/ChatWidget";
+import ChatWidget from "@/components/custom/chat-widget";
 
 interface Transcriptions {
   summary: string | null;

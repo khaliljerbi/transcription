@@ -232,3 +232,90 @@ Translate the following data to ${targetLanguage}. Your response must:
 
 data = ${data}
 `;
+
+// Additional translation prompts to help with token efficiency
+export const EFFICIENT_TRANSLATION_PROMPT = (
+  data: string,
+  targetLanguage: string
+) => `Translate to ${targetLanguage}:
+${data}
+
+EXTREMELY IMPORTANT INSTRUCTIONS:
+1. DO NOT add any explanatory text like "Here is the translation:"
+2. Begin your response with the translation directly
+3. Preserve all formatting and technical terms
+4. Return only the translated text, nothing else`;
+
+// For JSON translation
+export const JSON_TRANSLATION_PROMPT = (
+  data: string,
+  targetLanguage: string
+) => `Translate only the text content in this JSON to ${targetLanguage}:
+${data}
+
+EXTREMELY IMPORTANT INSTRUCTIONS:
+1. DO NOT include any prefixes like "Here is the translated JSON" or similar text
+2. DO NOT add any explanations, notes, or comments
+3. DO NOT use markdown formatting
+4. YOUR RESPONSE MUST BEGIN DIRECTLY WITH [ or { and end with ] or }
+5. Never abbreviate arrays with [...] - always include all elements
+6. Keep all numbers, booleans, nulls, and non-text values unchanged
+7. Keep all JSON keys exactly as they are, only translate string values
+8. Maintain exact JSON structure with all brackets, commas, and quotes
+
+BAD RESPONSE (DO NOT DO THIS):
+Here is the translated JSON data in French: [...]
+
+GOOD RESPONSE (DO THIS):
+[{"index":0,"text":"Texte traduit"},{"index":1,"text":"Autre texte"}]`;
+
+// For chapter translations
+export const CHAPTER_TRANSLATION_PROMPT = (
+  data: string,
+  targetLanguage: string
+) => `Translate the headline and summary fields to ${targetLanguage}:
+${data}
+
+EXTREMELY IMPORTANT INSTRUCTIONS:
+1. DO NOT include any prefixes or explanations like "Here is the translated data"
+2. YOUR RESPONSE MUST BEGIN DIRECTLY WITH [ or { and end with ] or }
+3. Only translate headline and summary fields, leave all other fields unchanged
+4. Keep exact same JSON structure and field names
+5. Preserve all time values (start/end) exactly as they are
+6. Keep all formatting in the text (if present)
+
+BAD RESPONSE (DO NOT DO THIS):
+Here are the translated chapters: [...]
+
+GOOD RESPONSE (DO THIS):
+[{"headline":"Titre traduit","summary":"Résumé traduit","start":12345,"end":67890,"gist":"Point essentiel"}]`;
+
+// Ultra minimal prompt for simple text translation
+export const MINIMAL_TEXT_PROMPT = (
+  data: string,
+  targetLanguage: string
+) => `Text to translate: "${data}"
+Target language: ${targetLanguage}
+
+RESPOND ONLY WITH THE TRANSLATION. NO JSON. NO PREFIXES. NO EXPLANATIONS.`;
+
+// Word array translation prompt
+export const WORD_ARRAY_PROMPT = (
+  data: string,
+  targetLanguage: string
+) => `Translate this array of words to ${targetLanguage}:
+${data}
+
+EXTREMELY IMPORTANT INSTRUCTIONS:
+1. Respond ONLY with the translated array
+2. Keep the EXACT same array structure with [ ] brackets
+3. Each word should be translated individually
+4. DO NOT add any explanatory text or comments
+5. DO NOT skip any words
+6. Return complete valid JSON only
+
+BAD RESPONSE (DO NOT DO THIS):
+Here are the translated words: ["mot1", "mot2", "mot3"]
+
+GOOD RESPONSE (DO THIS):
+["mot1", "mot2", "mot3"]`;

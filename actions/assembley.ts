@@ -4,7 +4,6 @@ import prisma from "@/lib/db";
 import {
   CHAPTERS_PROMPT,
   SUMMARY_PROMPT,
-  TRANSLATION_DATA_PROMPT,
   UTTERANCE_PROMPT,
 } from "@/lib/prompts";
 import { Chapter, TranscribeParams } from "assemblyai";
@@ -75,11 +74,11 @@ export const transcribeFile = async (fileUrl: string) => {
         final_model: "anthropic/claude-3-5-sonnet",
       });
 
-      const topicsPromise = assembleyClient.lemur.task({
-        transcript_ids: [transcript.id],
-        prompt: TRANSLATION_DATA_PROMPT(topics, "fr"),
-        final_model: "anthropic/claude-3-5-sonnet",
-      });
+      // const topicsPromise = assembleyClient.lemur.task({
+      //   transcript_ids: [transcript.id],
+      //   prompt: TRANSLATION_DATA_PROMPT(topics, "fr"),
+      //   final_model: "anthropic/claude-3-5-sonnet",
+      // });
 
       const [{ response: translatedChapters }] = await Promise.all([
         chaptersPromise,
@@ -102,6 +101,12 @@ export const transcribeFile = async (fileUrl: string) => {
   }
 };
 
+/**
+ * Try to find existing transcription or create new one.
+ *
+ * @param {string} resourceId the resourceId to find or create the transcription.
+ * @returns {Promise<TranscriptionResult>} the transcription result.
+ */
 export async function getOrCreateTranscription(resourceId: string) {
   try {
     // Try to find existing transcription

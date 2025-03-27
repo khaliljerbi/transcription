@@ -1,7 +1,7 @@
-import { usePlayerState } from "@/context/PlayerContext";
+import { usePlayerState } from "@/context/player-context";
 import { Chapter } from "assemblyai";
 import { useMemo } from "react";
-import { ChapterItem } from "./ChapterItem";
+import { ChapterItem } from "./chapter-item";
 
 // New Chapter component
 export const ChapterSection = ({

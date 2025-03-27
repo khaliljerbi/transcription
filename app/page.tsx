@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { getPreviewRessources } from "@/actions/ressources";
 import { getBestThumbnail } from "@/lib/utils";
-import { ClientInput } from "./resources/_components/ClientButton";
+import { ClientInput } from "./resources/_components/client-button";
 
 export default async function Home() {
   const previews = await getPreviewRessources();

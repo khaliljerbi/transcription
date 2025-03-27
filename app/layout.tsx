@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
-import ChatWidgetWrapper from "./ChatWidgetWrapper";
+import ChatWidgetWrapper from "./chat-widget-wrapper";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -26,8 +26,8 @@ export default function RootLayout({
         <script src="//unpkg.com/react-scan/dist/auto.global.js" />
       </head> */}
       <body className={cn("relative min-h-screen", inter.className)}>
-        <NavHeader />
         <Providers>
+          <NavHeader />
           <Suspense fallback={<p>Loading...</p>}>
             {children}
             <ChatWidgetWrapper />

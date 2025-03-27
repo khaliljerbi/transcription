@@ -1,6 +1,6 @@
 "use client";
 
-import { usePlayerState } from "@/context/PlayerContext";
+import { usePlayerState } from "@/context/player-context";
 import {
   forwardRef,
   useCallback,

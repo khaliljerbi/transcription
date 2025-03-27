@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useLanguage } from "@/context/language-context";
 import { getBestThumbnail } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
@@ -32,6 +33,7 @@ export default function ResourceListing({
   pageSize = 10,
 }: ResourceListingProps) {
   const router = useRouter();
+  const { t } = useLanguage();
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -46,7 +48,7 @@ export default function ResourceListing({
       setResources(data.list);
       setTotalPages(data.totalPages);
     } catch (err) {
-      setError("Failed to load resources. Please try again later.");
+      setError(t("failedToLoad"));
       console.error("Error fetching resources:", err);
     } finally {
       setIsLoading(false);
@@ -97,7 +99,7 @@ export default function ResourceListing({
           onClick={() => fetchResourcesData(currentPage)}
           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
-          Try Again
+          {t("tryAgain")}
         </button>
       </div>
     );
@@ -129,7 +131,7 @@ export default function ResourceListing({
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 rounded flex items-center justify-center">
-                      <span className="text-gray-400">No thumbnail</span>
+                      <span className="text-gray-400">{t("noThumbnail")}</span>
                     </div>
                   )}
                 </div>
@@ -139,7 +141,7 @@ export default function ResourceListing({
                       {resource.title}
                     </CardTitle>
                     <CardDescription className="line-clamp-3 mt-2">
-                      {resource.description || "No description available"}
+                      {resource.description || t("noDescription")}
                     </CardDescription>
                   </CardHeader>
                 </div>
@@ -157,7 +159,7 @@ export default function ResourceListing({
             disabled={currentPage === 1}
             className="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
-            Previous
+            {t("previous")}
           </button>
 
           {[...Array(totalPages)].map((_, index) => {
@@ -198,7 +200,7 @@ export default function ResourceListing({
             disabled={currentPage === totalPages}
             className="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
-            Next
+            {t("next")}
           </button>
         </div>
       )}

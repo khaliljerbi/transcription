@@ -1,4 +1,4 @@
-import ResourceListing from "./_components/RessourcesList";
+import ResourceListing from "./_components/ressources-list";
 
 export default function ResourcesPage() {
   return (

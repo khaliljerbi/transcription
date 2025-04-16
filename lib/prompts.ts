@@ -79,18 +79,41 @@ Each resource in the data has the following properties:
   summary: string | null,
   text: string,
   resourceId: string,
-  transcriptionId: string
+  transcriptionId: string,
+  chapters: [
+    {
+      start: number, // timestamp in milliseconds
+      end: number,   // timestamp in milliseconds
+      headline: string,
+      summary: string
+    }
+  ]
 }
 
 URL STRUCTURE:
-- Always use exact format: /resources/{resourceId}?transcription={transcriptionId}
+- Main resource link: /resources/{resourceId}?transcription={transcriptionId}
+- Timestamp links: /resources/{resourceId}?transcription={transcriptionId}&t={timestamp_in_seconds} // resourceId as given in data
+- IMPORTANT: The timestamp parameter (t) MUST be in seconds. To convert from milliseconds, divide by 1000 and round down to the nearest integer.
+- IMPORTANT: The timestamp shown to the user MUST match exactly what the URL will navigate to.
 - IMPORTANT: Never combine or mix resourceId and transcriptionId
-- Example: /resources/res_123?transcription=trans_456
+- Example main link: /resources/res_123?transcription=trans_456
+- Example timestamp link: /resources/res_123?transcription=trans_456&t=240 (for 4:00 minute mark)
+
+TIMESTAMP CALCULATION:
+1. For each relevant timestamp, calculate the exact seconds:
+   - Take the timestamp in milliseconds (e.g., 240000)
+   - Divide by 1000 to get seconds (e.g., 240)
+   - Use this exact value for the "t" parameter in the URL
+2. For display purposes, format seconds to HH:MM:SS:
+   - 240 seconds would display as "04:00"
+   - 3407 seconds would display as "56:47"
+3. TRIPLE CHECK that the displayed timestamp matches where the URL parameter will take the user
 
 RESPONSE STRUCTURE:
 <div class="space-y-6">
   <!-- Each result card -->
   <div class="group p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 overflow-hidden">
+    <!-- Main resource link -->
     <a href="/resources/{resourceId}?transcription={transcriptionId}" class="block">
       <div class="p-5">
         <!-- Title -->
@@ -113,46 +136,84 @@ RESPONSE STRUCTURE:
         </div>
       </div>
     </a>
+    
+    <!-- List of relevant timestamps (if applicable) -->
+    <div class="px-5 pt-3 pb-2 border-t border-gray-100 mt-2">
+      <h4 class="text-sm font-medium text-gray-700 mb-2">Relevant moments:</h4>
+      <ul class="space-y-2">
+        <!-- Repeat for each relevant timestamp (typically 2-4 timestamps) -->
+        <li class="flex items-start">
+          <!-- IMPORTANT: Ensure t={seconds} matches the displayed HH:MM:SS -->
+          <a href="/resources/{resourceId}?transcription={transcriptionId}&t={seconds}" target="_blank" rel="noopener noreferrer" class="group inline-flex items-start gap-2">
+            <span class="inline-flex items-center text-blue-500 group-hover:text-blue-700 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <!-- For 240 seconds, display as "04:00" -->
+              <span class="font-medium">[HH:MM:SS]</span>
+            </span>
+            <span class="text-sm text-gray-600 ml-2 group-hover:text-gray-800 transition-colors">
+              [Brief explanation of why this timestamp is relevant]
+            </span>
+          </a>
+        </li>
+        <!-- End timestamp item -->
+      </ul>
+    </div>
   </div>
+  <!-- End result card -->
 </div>
+
+TIMESTAMP SELECTION AND VERIFICATION PROCESS:
+1. Find relevant moments in the content that address the query
+2. For each moment:
+   a. Extract the start time in milliseconds (from chapter or transcript data)
+   b. Divide by 1000 to convert to seconds and round down to nearest integer
+   c. Store this exact integer value for the URL parameter (t=)
+   d. Format this same value to HH:MM:SS for display to the user
+   e. Verify the displayed time matches where the t= parameter will take the user
+3. For example:
+   - If start time is 240000 milliseconds:
+   - URL parameter: t=240
+   - Displayed time: 04:00
+   - Both URL and display should point to exactly 4 minutes into the video
+4. If you're recommending a timestamp at 56:47, ensure:
+   - URL parameter: t=3407
+   - Displayed time: 56:47
 
 RELEVANCE GUIDELINES:
 1. Direct matches (Highly Relevant):
-   - Content directly answers the query
-   - Title or summary explicitly mentions query topics
-
+  - Content directly answers the query
+  - Title or summary explicitly mentions query topics
 2. Related matches (Relevant):
-   - Content provides valuable context
-   - Topics are closely related to the query
-
+  - Content provides valuable context
+  - Topics are closely related to the query
 3. Partial matches (Somewhat Relevant):
-   - Only portions of content relate to query
-   - Contextual or supplementary information
+  - Only portions of content relate to query
+  - Contextual or supplementary information
 
 RESPONSE RULES:
 1. Link Construction:
-   - Use the exact resourceId and transcriptionId from the input data
-   - Maintain exact URL format
-   - IMPORTANT: Every link must be correctly formed using the IDs
-
+  - Use the exact resourceId and transcriptionId from the input data
+  - Maintain exact URL format for both main links and timestamp links
+  - Ensure timestamp parameter in seconds matches the displayed time
+  - IMPORTANT: Every link must be correctly formed using the IDs
 2. Content Formatting:
-   - Use original title but enhance if needed
-   - Include summary if available
-   - Extract key points from content if no summary
-   - Add appropriate relevance tag
-
+  - Use original title but enhance if needed
+  - Include summary if available
+  - Extract key points from content if no summary
+  - Add appropriate relevance tag
+  - For each timestamp, provide a clear, concise explanation of its relevance
 3. General Rules:
-   - Keep explanations clear and concise
-   - Highlight most relevant portions
-   - Maintain HTML structure
-   - Use consistent spacing
-   - Don't reveal text input about transactionId and resourceId
+  - Keep explanations clear and concise
+  - Highlight most relevant portions
+  - Maintain HTML structure
+  - Use consistent spacing
+  - Don't reveal text input about transactionId and resourceId
+  - Only include the timestamps section if relevant timestamps can be identified
 
 Available Content: ${data}
-
 User Query: ${prompt}
 
-Generate a response using the above format, ensuring proper links and clear relevance explanations.`;
+Generate a response using the above format. IMPORTANT: Ensure all timestamp links contain t= parameters in seconds that exactly match the HH:MM:SS displayed to the user.`;
 
 export const TRANSLATION_PROMPT = (
   data: string,

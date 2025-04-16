@@ -1,6 +1,7 @@
 "use client";
 
 import { usePlayerState } from "@/context/player-context";
+import { useSearchParams } from "next/navigation";
 import {
   forwardRef,
   useCallback,
@@ -24,6 +25,14 @@ export const MediaPlayer = forwardRef<MediaPlayerHandle, MediaPlayerProps>(
     const { setCurrentTime, setIsPlaying } = usePlayerState();
     const playerRef = useRef<YouTubePlayer | null>(null);
     const timeUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+    const initialSeekPendingRef = useRef(false);
+
+    // Get timestamp from URL if available
+    const searchParams = useSearchParams();
+    const timestampParam = searchParams.get("t");
+    const initialTimestamp = useRef<number | null>(
+      timestampParam ? parseInt(timestampParam, 10) : null
+    );
 
     useImperativeHandle(ref, () => ({
       seekTo: (time: number) => {
@@ -45,6 +54,26 @@ export const MediaPlayer = forwardRef<MediaPlayerHandle, MediaPlayerProps>(
     const handleStateChange = useCallback(
       (event: YouTubeEvent) => {
         setIsPlaying(event.data === 1);
+
+        // If we have a pending seek and the player is ready (state 1 = playing or -1 = unstarted)
+        if (
+          (event.data === 1 || event.data === -1) &&
+          initialTimestamp.current !== null &&
+          !initialSeekPendingRef.current
+        ) {
+          initialSeekPendingRef.current = true;
+
+          // Small delay to ensure player is fully ready
+          setTimeout(() => {
+            if (playerRef.current && initialTimestamp.current !== null) {
+              playerRef.current.seekTo(initialTimestamp.current, true);
+              // Optionally start playing after seeking
+              playerRef.current.playVideo();
+              // Clear the initial timestamp to prevent seeking again
+              initialTimestamp.current = null;
+            }
+          }, 300);
+        }
       },
       [setIsPlaying]
     );
@@ -63,6 +92,22 @@ export const MediaPlayer = forwardRef<MediaPlayerHandle, MediaPlayerProps>(
             setCurrentTime(currentTime);
           }
         }, 100);
+
+        if (
+          initialTimestamp.current !== null &&
+          !initialSeekPendingRef.current
+        ) {
+          initialSeekPendingRef.current = true;
+
+          // Small delay to ensure player is fully ready
+          setTimeout(() => {
+            if (playerRef.current && initialTimestamp.current !== null) {
+              playerRef.current.seekTo(initialTimestamp.current, true);
+              playerRef.current.playVideo();
+              initialTimestamp.current = null;
+            }
+          }, 300);
+        }
       },
       [setCurrentTime]
     );
@@ -80,6 +125,10 @@ export const MediaPlayer = forwardRef<MediaPlayerHandle, MediaPlayerProps>(
             playerVars: {
               controls: 1,
               modestbranding: 1,
+              // You can also set the start time here as a backup approach
+              ...(initialTimestamp.current !== null && {
+                start: initialTimestamp.current,
+              }),
             },
           }}
           className="w-full h-full"

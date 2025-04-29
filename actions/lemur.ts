@@ -1,5 +1,6 @@
 "use server";
 import assembleyClient from "@/lib/assembly-ai";
+import { DEFAULT_MODEL } from "@/lib/constants";
 import prisma from "@/lib/db";
 import groq from "@/lib/groq";
 import {
@@ -41,7 +42,7 @@ export const handleRequest = async (
           ),
         },
       ],
-      model: "qwen-2.5-32b",
+      model: DEFAULT_MODEL,
       temperature: 0.2,
     });
 
@@ -75,7 +76,7 @@ export const handleRequest = async (
                     Always return searchTerms in English regardless of input language.`,
       },
     ],
-    model: "llama3-70b-8192",
+    model: DEFAULT_MODEL,
     response_format: { type: "json_object" },
     stream: false,
     temperature: 0.2,
@@ -151,7 +152,7 @@ export const handleRequest = async (
         ),
       },
     ],
-    model: "llama3-70b-8192",
+    model: DEFAULT_MODEL,
   });
 
   return finalResponse.choices[0].message.content || "";
@@ -234,7 +235,7 @@ export const handleTranslation = async (
             ),
           },
         ],
-        model: "llama-guard-3-8b",
+        model: DEFAULT_MODEL,
         temperature: 0.3,
       });
 

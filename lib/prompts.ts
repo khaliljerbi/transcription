@@ -20,52 +20,54 @@ export const LEMUR_GLOBAL_CONTEXT = (
   videoId: string,
   prompt: string,
   data: string
-) => `You are an AI assistant analyzing video transcripts and providing contextual responses. Include timestamps only when they add value to the answer.
+) => `You are an AI assistant analyzing video transcripts and providing contextual responses. Include timestamps only when they add value to your answer.
+
+Provided data:
+Video ID: ${videoId}
+Question: ${prompt}
+Transcript: ${data}
 
 TIMESTAMP CONVERSION - VERY IMPORTANT:
 TWO-STEP CONVERSION PROCESS:
-
 1. First: Milliseconds to Seconds
    - Take the milliseconds value
    - Divide by 1000 to get seconds
-   Example: 723000 ms → 723 seconds
+   - Example: 178350 ms → 178.35 seconds
+   - Use this for the URL parameter (rounded to whole number): t=178
 
-2. Then: Seconds to Display Time
-   For times < 1 hour:
-   - Minutes = Math.floor(seconds / 60)
-   - Remaining seconds = seconds % 60
-   
-   For times ≥ 1 hour:
-   - Hours = Math.floor(seconds / 3600)
-   - Minutes = Math.floor((seconds % 3600) / 60)
-   - Remaining seconds = seconds % 60
+2. Then: Format as Display Time
+   - Format the seconds value into MM:SS or HH:MM:SS
+   - For times < 1 hour: Minutes = Math.floor(seconds / 60), Seconds = Math.floor(seconds % 60)
+   - For times ≥ 1 hour: Hours = Math.floor(seconds / 3600), Minutes = Math.floor((seconds % 3600) / 60), Seconds = Math.floor(seconds % 60)
+   - Example: 178.35 seconds → 2 minutes, 58 seconds → "02:58"
 
-COMPLETE EXAMPLES:
+EXAMPLES:
+- 4000 milliseconds:
+  1. To seconds: 4000 / 1000 = 4 seconds
+  2. Format: 0 minutes, 4 seconds → "00:04"
+  3. URL: t=4
+  4. Link: <a href="https://youtube.com/watch?v=${videoId}&t=4" class="text-blue-500 hover:text-blue-600 underline">00:04</a>
 
-65000 milliseconds:
-1. To seconds: 65000 / 1000 = 65 seconds
-2. Convert 65 seconds:
-   - Minutes: 65 ÷ 60 = 1 minute
-   - Seconds: 65 % 60 = 5 seconds
-   - Display as: "01:05"
-Link: <a href="https://youtube.com/watch?v=\${videoId}&t=65" class="text-blue-500 hover:text-blue-600 underline">01:05</a>
+- 178350 milliseconds:
+  1. To seconds: 178350 / 1000 = 178.35 seconds
+  2. Format: 2 minutes, 58 seconds → "02:58"
+  3. URL: t=178
+  4. Link: <a href="https://youtube.com/watch?v=${videoId}&t=178" class="text-blue-500 hover:text-blue-600 underline">02:58</a>
+
+- 3665000 milliseconds:
+  1. To seconds: 3665000 / 1000 = 3665 seconds
+  2. Format: 1 hour, 1 minute, 5 seconds → "01:01:05"
+  3. URL: t=3665
+  4. Link: <a href="https://youtube.com/watch?v=${videoId}&t=3665" class="text-blue-500 hover:text-blue-600 underline">01:01:05</a>
+
 
 RESPONSE FORMAT:
 <div class="space-y-4">
-  <p class="text-gray-700">
-    [Your answer here. Use timestamp links only when referencing specific moments]
-  </p>
+  <span class="text-gray-700">
+    [Your main answer here with timestamp links in bullet points when relevant]
+  </span>
 </div>
-
-IMPORTANT REMINDERS:
-- ALWAYS divide milliseconds by 1000 first
-- Use the seconds value (after dividing by 1000) in the URL t= parameter
-- Show times as MM:SS if under an hour, HH:MM:SS if an hour or more
-- Always use leading zeros in display format
-
-Available transcript data: ${data}
-Video ID: ${videoId}
-Question: ${prompt}`;
+`;
 
 export const GENERAL_PROMPT = (
   data: string,
@@ -90,24 +92,59 @@ Each resource in the data has the following properties:
   ]
 }
 
+TIMESTAMP CONVERSION - VERY IMPORTANT:
+TWO-STEP CONVERSION PROCESS:
+1. First: Milliseconds to Seconds
+   - Take the milliseconds value (e.g., 240000)
+   - Divide by 1000 to get seconds (e.g., 240)
+   - Use this exact value for the "t" parameter in the URL (t=240)
+
+2. Then: Seconds to Display Time
+   For times < 1 hour:
+   - Minutes = Math.floor(seconds / 60)
+   - Remaining seconds = seconds % 60
+   - Format with leading zeros as "MM:SS"
+   
+   For times ≥ 1 hour:
+   - Hours = Math.floor(seconds / 3600)
+   - Minutes = Math.floor((seconds % 3600) / 60)
+   - Remaining seconds = seconds % 60
+   - Format with leading zeros as "HH:MM:SS"
+
+COMPLETE EXAMPLES:
+- 65000 milliseconds:
+  1. To seconds: 65000 / 1000 = 65 seconds
+  2. Convert 65 seconds:
+     - Minutes: Math.floor(65 / 60) = 1 minute
+     - Seconds: 65 % 60 = 5 seconds
+     - Display as: "01:05"
+  3. URL parameter: t=65
+  4. Link: /resources/res_123?transcription=trans_456&t=65
+  
+- 3665000 milliseconds:
+  1. To seconds: 3665000 / 1000 = 3665 seconds
+  2. Convert 3665 seconds:
+     - Hours: Math.floor(3665 / 3600) = 1 hour
+     - Minutes: Math.floor((3665 % 3600) / 60) = 1 minute
+     - Seconds: 3665 % 60 = 5 seconds
+     - Display as: "01:01:05"
+  3. URL parameter: t=3665
+  4. Link: /resources/res_123?transcription=trans_456&t=3665
+
 URL STRUCTURE:
 - Main resource link: /resources/{resourceId}?transcription={transcriptionId}
-- Timestamp links: /resources/{resourceId}?transcription={transcriptionId}&t={timestamp_in_seconds} // resourceId as given in data
-- IMPORTANT: The timestamp parameter (t) MUST be in seconds. To convert from milliseconds, divide by 1000 and round down to the nearest integer.
-- IMPORTANT: The timestamp shown to the user MUST match exactly what the URL will navigate to.
-- IMPORTANT: Never combine or mix resourceId and transcriptionId
+- Timestamp links: /resources/{resourceId}?transcription={transcriptionId}&t={timestamp_in_seconds}
+- IMPORTANT: The timestamp parameter (t) MUST be in seconds. To convert from milliseconds, divide by 1000.
+- IMPORTANT: ALWAYS use the exact resourceId and transcriptionId from the data.
 - Example main link: /resources/res_123?transcription=trans_456
-- Example timestamp link: /resources/res_123?transcription=trans_456&t=240 (for 4:00 minute mark)
+- Example timestamp link: /resources/res_123?transcription=trans_456&t=240 (displays as "04:00")
 
-TIMESTAMP CALCULATION:
-1. For each relevant timestamp, calculate the exact seconds:
-   - Take the timestamp in milliseconds (e.g., 240000)
-   - Divide by 1000 to get seconds (e.g., 240)
-   - Use this exact value for the "t" parameter in the URL
-2. For display purposes, format seconds to HH:MM:SS:
-   - 240 seconds would display as "04:00"
-   - 3407 seconds would display as "56:47"
-3. TRIPLE CHECK that the displayed timestamp matches where the URL parameter will take the user
+VERIFICATION CHECKLIST FOR EACH TIMESTAMP:
+1. ✓ Milliseconds correctly divided by 1000 to get seconds
+2. ✓ Seconds used directly in URL parameter (t=)
+3. ✓ Same seconds value correctly formatted for display (MM:SS or HH:MM:SS)
+4. ✓ Display format has correct leading zeros
+5. ✓ Display time matches exactly where the URL will take the user
 
 RESPONSE STRUCTURE:
 <div class="space-y-6">
@@ -148,7 +185,7 @@ RESPONSE STRUCTURE:
             <span class="inline-flex items-center text-blue-500 group-hover:text-blue-700 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
               <!-- For 240 seconds, display as "04:00" -->
-              <span class="font-medium">[HH:MM:SS]</span>
+              <span class="font-medium">[MM:SS or HH:MM:SS]</span>
             </span>
             <span class="text-sm text-gray-600 ml-2 group-hover:text-gray-800 transition-colors">
               [Brief explanation of why this timestamp is relevant]
@@ -161,23 +198,6 @@ RESPONSE STRUCTURE:
   </div>
   <!-- End result card -->
 </div>
-
-TIMESTAMP SELECTION AND VERIFICATION PROCESS:
-1. Find relevant moments in the content that address the query
-2. For each moment:
-   a. Extract the start time in milliseconds (from chapter or transcript data)
-   b. Divide by 1000 to convert to seconds and round down to nearest integer
-   c. Store this exact integer value for the URL parameter (t=)
-   d. Format this same value to HH:MM:SS for display to the user
-   e. Verify the displayed time matches where the t= parameter will take the user
-3. For example:
-   - If start time is 240000 milliseconds:
-   - URL parameter: t=240
-   - Displayed time: 04:00
-   - Both URL and display should point to exactly 4 minutes into the video
-4. If you're recommending a timestamp at 56:47, ensure:
-   - URL parameter: t=3407
-   - Displayed time: 56:47
 
 RELEVANCE GUIDELINES:
 1. Direct matches (Highly Relevant):
@@ -213,7 +233,7 @@ RESPONSE RULES:
 Available Content: ${data}
 User Query: ${prompt}
 
-Generate a response using the above format. IMPORTANT: Ensure all timestamp links contain t= parameters in seconds that exactly match the HH:MM:SS displayed to the user.`;
+Generate a response using the above format. IMPORTANT: Ensure all timestamp links contain t= parameters in seconds that exactly match the MM:SS or HH:MM:SS displayed to the user.`;
 
 export const TRANSLATION_PROMPT = (
   data: string,

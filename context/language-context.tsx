@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 export type Language = "en" | "fr";
 
@@ -8,13 +14,15 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
+  isChangingLanguage: boolean;
+  lastLanguageChange: number;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(
   undefined
 );
 
-// Basic translations for UI elements
+// Enhanced translations for UI elements
 const translations: Record<string, Record<string, string>> = {
   en: {
     summary: "Summary",
@@ -35,6 +43,13 @@ const translations: Record<string, Record<string, string>> = {
     failedToLoad: "Failed to load resources. Please try again later.",
     noDescription: "No description available",
     noThumbnail: "No thumbnail",
+    translating: "Translating content...",
+    translationComplete: "Translation complete",
+    translationFailed: "Translation failed. Using original content.",
+    language: "Language",
+    english: "English",
+    french: "French",
+    changeLanguage: "Change language",
   },
   fr: {
     summary: "Résumé",
@@ -56,6 +71,14 @@ const translations: Record<string, Record<string, string>> = {
       "Échec du chargement des ressources. Veuillez réessayer plus tard.",
     noDescription: "Aucune description disponible",
     noThumbnail: "Pas de miniature",
+    translating: "Traduction du contenu...",
+    translationComplete: "Traduction terminée",
+    translationFailed:
+      "Échec de la traduction. Utilisation du contenu original.",
+    language: "Langue",
+    english: "Anglais",
+    french: "Français",
+    changeLanguage: "Changer de langue",
   },
 };
 
@@ -63,6 +86,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [language, setLanguageState] = useState<Language>("en");
+  const [isChangingLanguage, setIsChangingLanguage] = useState<boolean>(false);
+  const [lastLanguageChange, setLastLanguageChange] = useState<number>(
+    Date.now()
+  );
+
+  // Track rapid language changes
+  const languageChangeTimeouts = useRef<NodeJS.Timeout[]>([]);
 
   // Load language preference from localStorage on client side
   useEffect(() => {
@@ -73,8 +103,26 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const setLanguage = (lang: Language) => {
+    if (lang === language) return;
+
+    // Update the current language
     setLanguageState(lang);
     localStorage.setItem("language", lang);
+
+    // Set "changing language" state for UI indicators
+    setIsChangingLanguage(true);
+    setLastLanguageChange(Date.now());
+
+    // Clear any existing timeouts
+    languageChangeTimeouts.current.forEach((timeout) => clearTimeout(timeout));
+    languageChangeTimeouts.current = [];
+
+    // Add a new timeout to reset the changing state after 2 seconds
+    const timeout = setTimeout(() => {
+      setIsChangingLanguage(false);
+    }, 2000);
+
+    languageChangeTimeouts.current.push(timeout);
   };
 
   // Simple translation function
@@ -83,7 +131,15 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider
+      value={{
+        language,
+        setLanguage,
+        t,
+        isChangingLanguage,
+        lastLanguageChange,
+      }}
+    >
       {children}
     </LanguageContext.Provider>
   );

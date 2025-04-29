@@ -14,12 +14,20 @@ export default function NavHeader() {
           <UploadCloud className="h-6 w-6" />
           <h1 className="font-bold text-xl hidden sm:block">Transcription</h1>
         </Link>
-        <Link
-          href="/resources"
-          className="ml-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Resources
-        </Link>
+        <div className="flex items-center justify-center gap-2">
+          <Link
+            href="/resources"
+            className="ml-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Resources
+          </Link>
+          <Link
+            href="/translations"
+            className="ml-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Translations
+          </Link>
+        </div>
         <LanguageSwitcher />
       </div>
     </header>

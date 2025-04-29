@@ -1,16 +1,19 @@
 "use server";
 
 import { Language } from "@/context/language-context";
+import { DEFAULT_MODEL, FALLBACK_MODEL } from "@/lib/constants";
+import prisma from "@/lib/db";
 import groq from "@/lib/groq";
 import {
-  CHAPTER_TRANSLATION_PROMPT,
   EFFICIENT_TRANSLATION_PROMPT,
   JSON_TRANSLATION_PROMPT,
 } from "@/lib/prompts";
 import { TranscriptionResult } from "@/types/transcription";
-import { Chapter, TranscriptUtterance } from "assemblyai";
+import { TranslationStatus } from "@prisma/client";
+import { Client } from "@upstash/qstash";
+import { TranscriptUtterance } from "assemblyai";
 
-// Utility function to clean and extract JSON from responses that might contain prefixes
+// Original utility functions (kept as-is)
 function extractCleanJson(response: string): string {
   if (!response) return "[]";
 
@@ -129,14 +132,14 @@ function extractCleanJson(response: string): string {
 const getTranslationModel = (contentLength: number) => {
   // For very short content, use a smaller, more efficient model
   if (contentLength < 500) {
-    return "llama3-8b-8192";
+    return DEFAULT_MODEL;
   }
   // For medium content
   else if (contentLength < 2000) {
-    return "llama3-8b-8192";
+    return FALLBACK_MODEL;
   }
   // For larger content, use the more capable model
-  return "llama3-70b-8192";
+  return "llama-guard-3-8b";
 };
 
 // Utility function to handle API calls with fallback
@@ -172,7 +175,7 @@ async function callGroqWithFallback(
       );
 
       // If we were already using the small model, reduce content size further
-      if (preferredModel === "llama3-8b-8192") {
+      if (preferredModel === DEFAULT_MODEL) {
         // For text content, take the first 1000 characters
         const truncatedContent =
           content.length > 1000 ? content.substring(0, 1000) + "..." : content;
@@ -184,7 +187,7 @@ async function callGroqWithFallback(
               content: promptFn(truncatedContent, targetLanguage),
             },
           ],
-          model: "llama3-8b-8192",
+          model: FALLBACK_MODEL,
           temperature: 0.2,
         });
 
@@ -199,7 +202,7 @@ async function callGroqWithFallback(
             content: promptFn(content, targetLanguage),
           },
         ],
-        model: "llama3-8b-8192",
+        model: FALLBACK_MODEL,
         temperature: 0.2,
       });
 
@@ -211,6 +214,7 @@ async function callGroqWithFallback(
   }
 }
 
+// Modified translate content - now checks for cached translations first
 export async function translateContent(
   content: string | object | null | undefined,
   sourceLanguage: string,
@@ -225,7 +229,7 @@ export async function translateContent(
 
     // If content is JSON, handle it separately
     if (typeof content === "object") {
-      return await translateJsonContent(content, targetLanguage);
+      return await translateJsonContent(content, targetLanguage, 0);
     }
 
     // Handle string content
@@ -298,8 +302,20 @@ async function translateLargeText(text: string, targetLanguage: string) {
   return translatedChunks.join(" ");
 }
 
-// Function to translate JSON content
-async function translateJsonContent(content: object, targetLanguage: string) {
+// Modified function to prevent infinite recursion
+async function translateJsonContent(
+  content: object,
+  targetLanguage: string,
+  depth: number = 0
+) {
+  // Add a depth limit to prevent infinite recursion
+  if (depth > 5) {
+    console.warn(
+      "Maximum translation depth reached, returning original content"
+    );
+    return content;
+  }
+
   // Convert to string for easier processing
   const contentStr = JSON.stringify(content);
 
@@ -313,19 +329,17 @@ async function translateJsonContent(content: object, targetLanguage: string) {
       );
 
       const translatedContent = finalResponse.choices[0].message.content || "";
-
-      // Use our specialized function to clean the JSON
       const cleanedJsonContent = extractCleanJson(translatedContent);
 
       try {
         return JSON.parse(cleanedJsonContent);
       } catch (e) {
         console.error("Failed to parse translated JSON:", e);
-        return content; // Return original on parsing error
+        return content;
       }
     } catch (e) {
       console.error("Failed to translate JSON content:", e);
-      return content; // Return original on error
+      return content;
     }
   }
 
@@ -336,28 +350,37 @@ async function translateJsonContent(content: object, targetLanguage: string) {
     // Handle arrays
     if (Array.isArray(parsed)) {
       const results = [];
-      // Process array in chunks of 5 items
       for (let i = 0; i < parsed.length; i += 5) {
         const chunk = parsed.slice(i, i + 5);
-        const translatedChunk = await translateContent(
-          chunk,
-          "auto",
-          targetLanguage
+        // Pass translationJsonContent directly for object types
+        const translatedChunk = await Promise.all(
+          chunk.map(async (item) => {
+            if (typeof item === "string") {
+              return await translateContent(item, "auto", targetLanguage);
+            } else if (typeof item === "object" && item !== null) {
+              // Increment depth when translating nested objects
+              return await translateJsonContent(
+                item,
+                targetLanguage,
+                depth + 1
+              );
+            }
+            return item;
+          })
         );
         results.push(...translatedChunk);
       }
       return results;
     }
 
-    // Handle objects by translating each string value
+    // Handle objects by translating each value appropriately
     const translatedObj = { ...parsed };
-
     for (const key in translatedObj) {
       if (
         typeof translatedObj[key] === "string" &&
         translatedObj[key].length > 0
       ) {
-        // Translate each string value
+        // Translate string values directly
         translatedObj[key] = await translateContent(
           translatedObj[key],
           "auto",
@@ -367,22 +390,23 @@ async function translateJsonContent(content: object, targetLanguage: string) {
         typeof translatedObj[key] === "object" &&
         translatedObj[key] !== null
       ) {
-        // Recursively translate nested objects
-        translatedObj[key] = await translateContent(
+        // Process nested objects with incremented depth
+        translatedObj[key] = await translateJsonContent(
           translatedObj[key],
-          "auto",
-          targetLanguage
+          targetLanguage,
+          depth + 1
         );
       }
     }
-
     return translatedObj;
   } catch (error) {
-    console.error("Error processing JSON for translation:", error);
-    return content; // Return original on error
+    console.error(
+      `Error processing JSON for translation (depth ${depth}):`,
+      error
+    );
+    return content;
   }
 }
-
 // Map translated text to original words with timing
 function mapTranslatedTextToWords(
   originalWords: any[],
@@ -445,7 +469,7 @@ function mapTranslatedTextToWords(
 }
 
 // Translate utterances by first translating the text, then mapping to words
-async function translateUtterances(
+export async function translateUtterances(
   utterances: TranscriptUtterance[],
   sourceLanguage: string,
   targetLanguage: string
@@ -547,139 +571,145 @@ export async function translateTranscription(
   // Get the detected language from the transcription
   const sourceLanguage = transcription.language_code || "en";
 
+  // If already in target language, no translation needed
   if (sourceLanguage === targetLanguage) {
     return transcription;
   }
 
   try {
-    const translatedTranscription = { ...transcription };
+    // Look up the resource in our database
+    const dbTranscription = await prisma.transcription.findUnique({
+      where: { resourceId: transcription.resourceId },
+    });
 
-    // if (transcription.utterances && transcription.utterances.length > 0) {
-    //   try {
-    //     // Use our improved approach: translate text first, then map to words
-    //     translatedTranscription.utterances = await translateUtterances(
-    //       transcription.utterances,
-    //       sourceLanguage,
-    //       targetLanguage
-    //     );
-    //   } catch (utteranceError) {
-    //     console.error("Utterance translation failed:", utteranceError);
-    //     // If translation fails, keep original utterances
-    //     translatedTranscription.utterances = transcription.utterances;
-    //   }
-    // }
-
-    if (transcription.summary) {
-      translatedTranscription.summary = await translateContent(
-        transcription.summary,
-        sourceLanguage,
-        targetLanguage
-      );
+    if (!dbTranscription) {
+      console.error("Transcription not found in database");
+      return transcription; // Return original if not found in DB
     }
 
-    if (transcription.chapters && transcription.chapters.length > 0) {
-      // Process chapters in smaller batches to avoid token limits
-      const batchSize = 5; // Translate 5 chapters at a time
-      const translatedChapters = [];
+    // Check if we have a completed translation
+    const translation = await prisma.translation.findUnique({
+      where: {
+        transcriptionId_language: {
+          transcriptionId: dbTranscription.id,
+          language: targetLanguage,
+        },
+      },
+    });
 
-      for (let i = 0; i < transcription.chapters.length; i += batchSize) {
-        const chapterBatch = transcription.chapters.slice(i, i + batchSize);
+    // If we have a completed translation, use it
+    if (translation && translation.status === TranslationStatus.COMPLETED) {
+      const translatedResult = { ...transcription };
 
-        try {
-          const chapterData = JSON.stringify(chapterBatch);
-          const response = await callGroqWithFallback(
-            chapterData,
-            CHAPTER_TRANSLATION_PROMPT,
-            targetLanguage
-          );
-
-          // Try to parse the translated chapters
-          const cleanedResponseContent = extractCleanJson(
-            response.choices[0].message.content || "[]"
-          );
-          let processedBatch = [];
-
-          try {
-            processedBatch = JSON.parse(cleanedResponseContent);
-          } catch (e) {
-            console.error(
-              "Failed to parse translated chapters, falling back to individual translation:",
-              e
-            );
-
-            // Fall back to translating each chapter individually
-            processedBatch = await Promise.all(
-              chapterBatch.map(async (chapter: Chapter) => ({
-                ...chapter,
-                headline: await translateContent(
-                  chapter.headline,
-                  sourceLanguage,
-                  targetLanguage
-                ),
-                summary: await translateContent(
-                  chapter.summary,
-                  sourceLanguage,
-                  targetLanguage
-                ),
-                gist: chapter.gist
-                  ? await translateContent(
-                      chapter.gist,
-                      sourceLanguage,
-                      targetLanguage
-                    )
-                  : undefined,
-              }))
-            );
-          }
-
-          translatedChapters.push(...processedBatch);
-        } catch (batchError) {
-          console.error(
-            `Failed to translate chapter batch ${i}-${i + batchSize}:`,
-            batchError
-          );
-
-          // On batch error, fall back to translating each chapter individually
-          const individuallyTranslated = await Promise.all(
-            chapterBatch.map(async (chapter: Chapter) => {
-              try {
-                return {
-                  ...chapter,
-                  headline: await translateContent(
-                    chapter.headline,
-                    sourceLanguage,
-                    targetLanguage
-                  ),
-                  summary: await translateContent(
-                    chapter.summary,
-                    sourceLanguage,
-                    targetLanguage
-                  ),
-                  gist: chapter.gist
-                    ? await translateContent(
-                        chapter.gist,
-                        sourceLanguage,
-                        targetLanguage
-                      )
-                    : undefined,
-                };
-              } catch (e) {
-                console.error("Individual chapter translation failed:", e);
-                return chapter; // Return original chapter on error
-              }
-            })
-          );
-
-          translatedChapters.push(...individuallyTranslated);
-        }
+      if (translation.text) translatedResult.text = translation.text;
+      if (translation.summary) translatedResult.summary = translation.summary;
+      if (translation.chapters) {
+        translatedResult.chapters = JSON.parse(translation.chapters as string);
+      }
+      if (translation.utterances) {
+        translatedResult.utterances = JSON.parse(
+          translation.utterances as string
+        );
       }
 
-      translatedTranscription.chapters = translatedChapters;
+      return translatedResult;
     }
 
-    return translatedTranscription;
+    // Check for a translation in progress
+    const queueEntry = await prisma.translationQueue.findFirst({
+      where: {
+        transcriptionId: dbTranscription.id,
+        targetLanguage,
+        status: {
+          in: [TranslationStatus.PENDING, TranslationStatus.IN_PROGRESS],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // If no job is in progress, queue one
+    if (!queueEntry) {
+      // Create a queue entry in our database
+      const newQueueEntry = await prisma.translationQueue.create({
+        data: {
+          transcriptionId: dbTranscription.id,
+          sourceLanguage,
+          targetLanguage,
+          status: TranslationStatus.PENDING,
+          progress: 0,
+        },
+      });
+
+      // Queue the background job using QStash
+      const qstash = new Client({ token: process.env.QSTASH_TOKEN || "" });
+      await qstash.publishJSON({
+        url: `${process.env.NEXT_PUBLIC_APP_URL}/api/process-translation`,
+        body: {
+          queueId: newQueueEntry.id,
+          transcriptionId: dbTranscription.id,
+          sourceLanguage,
+          targetLanguage,
+        },
+      });
+
+      // Set for return value
+      const translatedResult = { ...transcription };
+
+      // Do minimal translation for immediate display (just summary)
+      if (transcription.summary) {
+        translatedResult.summary = await translateContent(
+          transcription.summary,
+          sourceLanguage,
+          targetLanguage
+        );
+      }
+
+      // Add the translation status
+      translatedResult.translationStatus = {
+        status: TranslationStatus.PENDING,
+        progress: 0,
+        queueId: newQueueEntry.id,
+      };
+
+      return translatedResult;
+    }
+
+    // If a job is already in progress, return current state with status
+    const translatedResult = { ...transcription };
+
+    // If we have a partial translation, use what we have
+    if (translation) {
+      if (translation.summary) translatedResult.summary = translation.summary;
+      if (translation.text) translatedResult.text = translation.text;
+      if (translation.chapters) {
+        translatedResult.chapters = JSON.parse(translation.chapters as string);
+      }
+      if (translation.utterances) {
+        translatedResult.utterances = JSON.parse(
+          translation.utterances as string
+        );
+      }
+    } else {
+      // If no partial translation exists, do quick summary translation
+      if (transcription.summary) {
+        translatedResult.summary = await translateContent(
+          transcription.summary,
+          sourceLanguage,
+          targetLanguage
+        );
+      }
+    }
+
+    // Add the translation status for progress tracking
+    translatedResult.translationStatus = {
+      status: queueEntry.status,
+      progress: queueEntry.progress,
+      queueId: queueEntry.id,
+    };
+
+    return translatedResult;
   } catch (error) {
-    console.error("Error translating transcription:", error);
+    console.error("Error in translateTranscription:", error);
     return transcription; // Return original on error
   }
 }

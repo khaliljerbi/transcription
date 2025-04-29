@@ -1,6 +1,7 @@
 "use client";
 import { getOrCreateTranscription } from "@/actions/assembley";
 import { translateTranscription } from "@/actions/translate";
+import { TranslationIndicator } from "@/components/custom/translation-indicator";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -119,39 +120,87 @@ export default function TranscriptionPageContent() {
   const [transcriptionData, setTranscriptionData] = useState<
     TranscriptionResult | null | undefined
   >(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [originalData, setOriginalData] = useState<
+    TranscriptionResult | null | undefined
+  >(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [menu, setMenu] = useState<MenuDetails>(MenuDetails.SPEAKER);
   const { playerRef } = usePlayerRef();
   const { language, t } = useLanguage();
 
   const { id } = useParams();
 
+  // Load original transcription data once
   useEffect(() => {
-    const processTranscription = async () => {
+    const loadTranscription = async () => {
+      if (!id) return;
+
       setIsLoading(true);
       try {
-        const result = await getOrCreateTranscription(id as string);
-
-        // Translate if needed
+        const result = await getOrCreateTranscription(id as string, language);
         if (result) {
-          const translatedResult = await translateTranscription(
-            result,
-            language
-          );
-          setTranscriptionData(translatedResult);
+          setOriginalData(result);
+
+          // If language matches original, use it directly
+          if (result.language_code === language) {
+            setTranscriptionData(result);
+          }
         } else {
+          setOriginalData(null);
           setTranscriptionData(null);
         }
       } catch (error) {
         console.error("Transcription failed:", error);
+        setOriginalData(null);
         setTranscriptionData(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    processTranscription();
-  }, [id, language]); // Re-fetch when language changes
+    loadTranscription();
+  }, [id]); // Only depend on ID, not language
+
+  // Handle language changes separately
+  useEffect(() => {
+    if (originalData) {
+      handleLanguageChange(originalData);
+    }
+  }, [language]); // Re-run when language changes
+
+  // Separate function to handle language changes
+  const handleLanguageChange = async (data: TranscriptionResult) => {
+    // If original language matches requested language, use original
+    if (data.language_code === language) {
+      setTranscriptionData(data);
+      setIsTranslating(false);
+      return;
+    }
+
+    // Otherwise, show translation is in progress
+    setIsTranslating(true);
+
+    try {
+      // First display existing data to avoid blank screen
+      if (!transcriptionData) {
+        setTranscriptionData(data);
+      }
+
+      // Then translate in the background
+      const translatedResult = await translateTranscription(data, language);
+
+      setTranscriptionData(translatedResult);
+    } catch (error) {
+      console.error("Translation failed:", error);
+      // Keep showing original data in case of error
+      if (!transcriptionData) {
+        setTranscriptionData(data);
+      }
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   const handleChapterClick = useCallback(
     (time: number) => {
@@ -184,7 +233,7 @@ export default function TranscriptionPageContent() {
   }
 
   return (
-    <>
+    <div className="relative">
       <div className="container mx-auto px-4 py-6 relative">
         <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* Left side - Player */}
@@ -227,6 +276,15 @@ export default function TranscriptionPageContent() {
           onChapterClick={handleChapterClick}
         />
       </div>
-    </>
+      {/* Add the TranslationIndicator here */}
+      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+        <TranslationIndicator
+          resourceId={transcriptionData?.resourceId || (id as string)}
+          originalLanguage={originalData?.language_code || "en"}
+          isTranslating={isTranslating}
+          translationStatus={transcriptionData?.translationStatus}
+        />
+      </div>
+    </div>
   );
 }

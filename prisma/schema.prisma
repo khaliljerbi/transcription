@@ -13,18 +13,62 @@ datasource db {
 }
 
 model Transcription {
-  id              String   @id @default(cuid())
-  resourceId      String   @unique
+  id              String        @id @default(cuid())
+  resourceId      String        @unique
   text            String // SQLite doesn't have Text type, uses String
   summary         String?
   topics          Json // Store stringified JSON
   chapters        Json? // Store stringified JSON
   words           Json? // Store stringified JSON
   utterances      Json?
-  language        String?  @default("en")
+  language        String?       @default("en")
   thumbnail       String
   title           String
   transcriptionId String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  translations    Translation[]
+}
+
+model Translation {
+  id              String            @id @default(cuid())
+  transcriptionId String
+  transcription   Transcription     @relation(fields: [transcriptionId], references: [id], onDelete: Cascade)
+  language        String
+  title           String?
+  text            String?
+  summary         String?
+  topics          Json?
+  chapters        Json?
+  utterances      Json?
+  status          TranslationStatus @default(PENDING)
+  progress        Float             @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([transcriptionId, language])
+  @@index([status])
+}
+
+model TranslationQueue {
+  id              String            @id @default(cuid())
+  transcriptionId String
+  sourceLanguage  String
+  targetLanguage  String
+  status          TranslationStatus @default(PENDING)
+  priority        Int               @default(5) // 1-10, higher is more priority
+  progress        Float             @default(0)
+  error           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([status])
+  @@index([transcriptionId, targetLanguage])
+}
+
+enum TranslationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
 }

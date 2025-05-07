@@ -276,7 +276,6 @@ export default function TranscriptionPageContent() {
           onChapterClick={handleChapterClick}
         />
       </div>
-      {/* Add the TranslationIndicator here */}
       <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
         <TranslationIndicator
           resourceId={transcriptionData?.resourceId || (id as string)}
